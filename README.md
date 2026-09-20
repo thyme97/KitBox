@@ -57,8 +57,7 @@ powershell -ExecutionPolicy Bypass -File packaging\package.ps1
 ## 数据目录
 
 - 默认 `~/.kitbox`：`config.json`（应用配置，不含密钥）、`keystore.dat`（密钥库）。
-- 可在「设置 → 存储位置」迁移到任意位置（立即复制，重启后生效），重定向记录保存在 `~/.kitbox/data-dir.txt`。
-- 由旧版（`~/.mytools`）升级而来时，首次启动自动把数据迁移到 `~/.kitbox`。
+- 可在「设置 → 存储位置」迁移到任意位置（立即复制，重启后生效）。
 
 ## 技术细节
 
