@@ -1,0 +1,16 @@
+target/
+*.class
+*.jar
+!/.mvn/wrapper/
+dependency-reduced-pom.xml
+.idea/
+*.iml
+.vscode/
+.settings/
+.classpath
+.project
+
+# 打包产物与本地工具
+packaging/dist/
+packaging/staging/
+packaging/tools/
