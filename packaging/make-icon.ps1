@@ -9,6 +9,10 @@ $OutPath = Join-Path $PSScriptRoot "icon\kitbox.ico"
 $Dir = Split-Path -Parent $OutPath
 if (-not (Test-Path $Dir)) { New-Item -ItemType Directory -Path $Dir | Out-Null }
 
+# 同时导出各尺寸 PNG 到应用资源，供 MainWindow.setIconImages 使用（修复任务栏显示 Java 图标）
+$ResDir = Join-Path (Split-Path -Parent $PSScriptRoot) "src\main\resources\icon"
+if (-not (Test-Path $ResDir)) { New-Item -ItemType Directory -Path $ResDir | Out-Null }
+
 $BG = [System.Drawing.Color]::FromArgb(255, 68, 108, 245)
 $FG = [System.Drawing.Color]::White
 $sizes = 16, 24, 32, 48, 64, 128, 256
@@ -44,6 +48,7 @@ foreach ($s in $sizes) {
 
     $ms = New-Object System.IO.MemoryStream
     $bmp.Save($ms, [System.Drawing.Imaging.ImageFormat]::Png)
+    $bmp.Save((Join-Path $ResDir ("icon{0}.png" -f $s)), [System.Drawing.Imaging.ImageFormat]::Png)
     $dim = $(if ($s -ge 256) { [byte]0 } else { [byte]$s })
     $entries += ,@($dim, $dim, $ms.ToArray())
 

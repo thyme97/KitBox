@@ -26,11 +26,16 @@ import java.awt.Color;
 import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.Font;
+import java.awt.Image;
+import java.awt.Toolkit;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.net.URL;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -49,6 +54,7 @@ public class MainWindow extends JFrame {
 
     public MainWindow() {
         super("KitBox 工具箱");
+        applyWindowIcons();
 
         panels.put(NAV_ITEMS[0], new SymmetricPanel());
         panels.put(NAV_ITEMS[1], new AsymmetricPanel());
@@ -83,6 +89,20 @@ public class MainWindow extends JFrame {
                 System.exit(0);
             }
         });
+    }
+
+    /** 用 resources/icon/ 下的 PNG 设置窗口与任务栏图标；缺失时保持默认。 */
+    private void applyWindowIcons() {
+        List<Image> icons = new ArrayList<>();
+        for (int size : new int[]{16, 24, 32, 48, 64, 128, 256}) {
+            URL url = MainWindow.class.getResource("/icon/icon" + size + ".png");
+            if (url != null) {
+                icons.add(Toolkit.getDefaultToolkit().getImage(url));
+            }
+        }
+        if (!icons.isEmpty()) {
+            setIconImages(icons);
+        }
     }
 
     private JPanel buildNav() {
