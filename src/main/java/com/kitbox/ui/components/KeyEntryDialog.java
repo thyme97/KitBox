@@ -67,40 +67,57 @@ public final class KeyEntryDialog extends JDialog {
         gbc.insets = new Insets(4, 8, 4, 8);
         gbc.anchor = GridBagConstraints.WEST;
 
-        gbc.gridx = 0;
+        // 统一四列网格：0/2 列固定放标签，1/3 列放字段（weightx=1 拉伸），各行严格对齐
         gbc.gridy = 0;
+        gbc.gridx = 0;
+        gbc.weightx = 0;
+        gbc.fill = GridBagConstraints.NONE;
         form.add(new JLabel("名称："), gbc);
         gbc.gridx = 1;
-        gbc.gridwidth = 2;
-        gbc.fill = GridBagConstraints.HORIZONTAL;
         gbc.weightx = 1;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
         form.add(nameField, gbc);
-        gbc.gridwidth = 1;
-        gbc.fill = GridBagConstraints.NONE;
+        gbc.gridx = 2;
         gbc.weightx = 0;
-        gbc.gridx = 3;
+        gbc.fill = GridBagConstraints.NONE;
         form.add(new JLabel("场景："), gbc);
-        gbc.gridx = 4;
+        gbc.gridx = 3;
+        gbc.weightx = 1;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
         for (String s : AppContext.keyStore.getScenarios()) {
             scenarioCombo.addItem(s);
         }
         form.add(scenarioCombo, gbc);
 
-        gbc.gridx = 0;
         gbc.gridy = 1;
+        gbc.gridx = 0;
+        gbc.weightx = 0;
+        gbc.fill = GridBagConstraints.NONE;
         form.add(new JLabel("类型："), gbc);
         gbc.gridx = 1;
+        gbc.weightx = 1;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
         form.add(typeCombo, gbc);
         gbc.gridx = 2;
+        gbc.weightx = 0;
+        gbc.fill = GridBagConstraints.NONE;
         form.add(new JLabel("输入格式："), gbc);
         gbc.gridx = 3;
-        form.add(formatCombo, gbc);
-        gbc.gridx = 4;
-        form.add(new JLabel("备注："), gbc);
-        gbc.gridx = 5;
-        gbc.fill = GridBagConstraints.HORIZONTAL;
         gbc.weightx = 1;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        form.add(formatCombo, gbc);
+
+        gbc.gridy = 2;
+        gbc.gridx = 0;
+        gbc.weightx = 0;
+        gbc.fill = GridBagConstraints.NONE;
+        form.add(new JLabel("备注："), gbc);
+        gbc.gridx = 1;
+        gbc.gridwidth = 3;
+        gbc.weightx = 1;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
         form.add(remarkField, gbc);
+        gbc.gridwidth = 1;
         gbc.fill = GridBagConstraints.NONE;
         gbc.weightx = 0;
 

@@ -15,6 +15,11 @@ public final class UiTheme {
     }
 
     public static void apply(AppConfig config) {
+        // 品牌主色与应用图标一致：选中高亮、焦点描边、默认按钮统一为品牌蓝
+        java.util.Map<String, String> brand = new java.util.HashMap<>();
+        brand.put("@accentColor", "#446CF5");
+        brand.put("@selectionArc", "8");
+        com.formdev.flatlaf.FlatLaf.setGlobalExtraDefaults(brand);
         try {
             if ("dark".equals(config.getTheme())) {
                 UIManager.setLookAndFeel(new FlatDarkLaf());
@@ -26,6 +31,7 @@ public final class UiTheme {
         // 中文环境优先使用雅黑系字体
         String fontName = pickFont();
         UIManager.put("defaultFont", new java.awt.Font(fontName, java.awt.Font.PLAIN, config.getFontSize()));
+        UIManager.put("Tree.rowHeight", 26);
     }
 
     private static String pickFont() {

@@ -20,6 +20,7 @@ import java.security.PublicKey;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class KeyCodecTest {
@@ -99,5 +100,62 @@ class KeyCodecTest {
         byte[] data = utf8("使用裸点公钥加密");
         byte[] cipher = AsymmetricService.sm2Encrypt(data, pub, Sm2CipherMode.C1C3C2);
         assertArrayEquals(data, AsymmetricService.sm2Decrypt(cipher, priv, Sm2CipherMode.C1C3C2));
+    }
+
+    @Test
+    void sm2RawHexViewsMatchOriginalKeys() throws CryptoException {
+        KeyPair kp = KeyCodec.generateSm2KeyPair();
+        String pubB64 = KeyCodec.toBase64(kp.getPublic());
+        String privB64 = KeyCodec.toBase64(kp.getPrivate());
+
+        String rawPub = KeyCodec.sm2PublicRawHex(pubB64);
+        assertEquals(130, rawPub.length());
+        assertTrue(rawPub.startsWith("04"));
+
+        String rawPriv = KeyCodec.sm2PrivateRawHex(privB64);
+        assertEquals(64, rawPriv.length());
+
+        ECPublicKeyParameters pubFromRaw = KeyCodec.parseSm2PublicKey(rawPub, KeyFormat.HEX);
+        ECPrivateKeyParameters privFromRaw = KeyCodec.parseSm2PrivateKey(rawPriv, KeyFormat.HEX);
+        assertEquals(KeyCodec.parseSm2PublicKey(pubB64, KeyFormat.BASE64).getQ(), pubFromRaw.getQ());
+        assertEquals(KeyCodec.parseSm2PrivateKey(privB64, KeyFormat.BASE64).getD(), privFromRaw.getD());
+    }
+
+    @Test
+    void sm2BarePrivateKeyAcceptsLeadingZeroPadding() throws Exception {
+        KeyPair kp = KeyCodec.generateSm2KeyPair();
+        ECPrivateKeyParameters params =
+                KeyCodec.parseSm2PrivateKey(KeyCodec.toBase64(kp.getPrivate()), KeyFormat.BASE64);
+        byte[] d32 = new byte[32];
+        byte[] src = params.getD().toByteArray();
+        System.arraycopy(src, src.length - 32, d32, 0, 32);
+
+        // 部分工具导出裸私钥时补符号位成 33 字节（前导 00），应可解析
+        byte[] padded = new byte[33];
+        System.arraycopy(d32, 0, padded, 1, 32);
+        assertEquals(params.getD(), KeyCodec.parseSm2PrivateKey(HexUtils.encode(padded), KeyFormat.HEX).getD());
+        // 格式误选 Base64 时也应通过 Hex 回退解析成功
+        assertEquals(params.getD(), KeyCodec.parseSm2PrivateKey(HexUtils.encode(padded), KeyFormat.BASE64).getD());
+    }
+
+    @Test
+    void sm2RawPointHexAcceptedEvenWhenFormatIsBase64() throws Exception {
+        KeyPair kp = KeyCodec.generateSm2KeyPair();
+        String rawPubHex = KeyCodec.sm2PublicRawHex(KeyCodec.toBase64(kp.getPublic()));
+        ECPublicKeyParameters viaHex = KeyCodec.parseSm2PublicKey(rawPubHex, KeyFormat.HEX);
+        ECPublicKeyParameters viaB64 = KeyCodec.parseSm2PublicKey(rawPubHex, KeyFormat.BASE64);
+        assertEquals(viaHex.getQ(), viaB64.getQ());
+    }
+
+    @Test
+    void sm2PublicKeyOffCurveGetsClearError() {
+        // (1,1) 不在 sm2p256v1 曲线上（b ≠ 3），应给出明确诊断而非笼统“无法解析”
+        byte[] bad = new byte[65];
+        bad[0] = 0x04;
+        bad[1] = 0x01;
+        bad[33] = 0x01;
+        CryptoException e = assertThrows(CryptoException.class,
+                () -> KeyCodec.parseSm2PublicKey(HexUtils.encode(bad), KeyFormat.HEX));
+        assertTrue(e.getMessage().contains("不在 SM2"));
     }
 }

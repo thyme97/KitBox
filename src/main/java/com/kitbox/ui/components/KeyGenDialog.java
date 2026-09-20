@@ -58,12 +58,20 @@ public final class KeyGenDialog extends JDialog {
 
         gbc.gridx = 0;
         gbc.gridy = 0;
+        gbc.weightx = 0;
+        gbc.fill = GridBagConstraints.NONE;
         form.add(new JLabel("名称："), gbc);
         gbc.gridx = 1;
+        gbc.weightx = 1;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
         form.add(nameField, gbc);
         gbc.gridx = 2;
+        gbc.weightx = 0;
+        gbc.fill = GridBagConstraints.NONE;
         form.add(new JLabel("场景："), gbc);
         gbc.gridx = 3;
+        gbc.weightx = 1;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
         for (String s : AppContext.keyStore.getScenarios()) {
             scenarioCombo.addItem(s);
         }
@@ -71,22 +79,35 @@ public final class KeyGenDialog extends JDialog {
 
         gbc.gridx = 0;
         gbc.gridy = 1;
+        gbc.weightx = 0;
+        gbc.fill = GridBagConstraints.NONE;
         form.add(new JLabel("类型："), gbc);
         gbc.gridx = 1;
+        gbc.weightx = 1;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
         form.add(typeCombo, gbc);
         gbc.gridx = 2;
+        gbc.weightx = 0;
+        gbc.fill = GridBagConstraints.NONE;
         form.add(new JLabel("参数："), gbc);
         gbc.gridx = 3;
+        gbc.weightx = 1;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
         form.add(paramCombo, gbc);
 
         gbc.gridx = 0;
         gbc.gridy = 2;
+        gbc.weightx = 0;
+        gbc.fill = GridBagConstraints.NONE;
         form.add(new JLabel("备注："), gbc);
         gbc.gridx = 1;
         gbc.gridwidth = 3;
+        gbc.weightx = 1;
         gbc.fill = GridBagConstraints.HORIZONTAL;
         form.add(remarkField, gbc);
         gbc.gridwidth = 1;
+        gbc.fill = GridBagConstraints.NONE;
+        gbc.weightx = 0;
 
         previewArea.setEditable(false);
         previewArea.setLineWrap(true);

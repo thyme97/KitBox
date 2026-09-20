@@ -2,36 +2,35 @@ package com.kitbox.ui;
 
 import com.kitbox.AppContext;
 import com.kitbox.ui.panel.AsymmetricPanel;
+import com.kitbox.ui.panel.ConvertPanel;
 import com.kitbox.ui.panel.DigestPanel;
 import com.kitbox.ui.panel.EncodePanel;
+import com.kitbox.ui.panel.FileChecksumPanel;
 import com.kitbox.ui.panel.JsonFieldPanel;
+import com.kitbox.ui.panel.JsonToolsPanel;
 import com.kitbox.ui.panel.KeyManagerPanel;
 import com.kitbox.ui.panel.MessageFormatPanel;
+import com.kitbox.ui.panel.PasswordGenPanel;
 import com.kitbox.ui.panel.QRPanel;
 import com.kitbox.ui.panel.SettingsPanel;
 import com.kitbox.ui.panel.SignaturePanel;
 import com.kitbox.ui.panel.SymmetricPanel;
 
 import javax.swing.BorderFactory;
-import javax.swing.DefaultListCellRenderer;
-import javax.swing.DefaultListModel;
 import javax.swing.JFrame;
-import javax.swing.JList;
 import javax.swing.JPanel;
-import javax.swing.ListSelectionModel;
+import javax.swing.JTree;
+import javax.swing.JScrollPane;
 import javax.swing.SwingUtilities;
+import javax.swing.tree.DefaultMutableTreeNode;
 import java.awt.BorderLayout;
 import java.awt.CardLayout;
 import java.awt.Color;
-import java.awt.Component;
 import java.awt.Dimension;
-import java.awt.Font;
 import java.awt.Image;
 import java.awt.Toolkit;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
-import java.awt.event.MouseAdapter;
-import java.awt.event.MouseEvent;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -43,10 +42,19 @@ import java.util.Map;
  */
 public class MainWindow extends JFrame {
 
-    private static final String[] NAV_ITEMS = {
-            "对称加解密", "非对称加解密", "JSON 字段加解密", "报文格式加解密",
-            "加签 / 验签", "摘要与 HMAC", "编码转换", "二维码工具", "密钥库", "设置"
-    };
+    /** 左侧导航分组：组名 -> 工具列表。 */
+    private static final Map<String, String[]> NAV_GROUPS = new LinkedHashMap<>();
+
+    static {
+        NAV_GROUPS.put("加密安全", new String[]{
+                "对称加解密", "非对称加解密", "加签 / 验签", "摘要与 HMAC",
+                "JSON 字段加解密", "报文格式加解密", "密钥库"});
+        NAV_GROUPS.put("编码与格式", new String[]{
+                "编码转换", "JSON 工具", "转换工具", "二维码工具"});
+        NAV_GROUPS.put("校验与生成", new String[]{
+                "文件批量校验", "密码生成器"});
+        NAV_GROUPS.put("设置", new String[]{"设置"});
+    }
 
     private final CardLayout cards = new CardLayout();
     private final JPanel contentPanel = new JPanel(cards);
@@ -56,16 +64,11 @@ public class MainWindow extends JFrame {
         super("KitBox 工具箱");
         applyWindowIcons();
 
-        panels.put(NAV_ITEMS[0], new SymmetricPanel());
-        panels.put(NAV_ITEMS[1], new AsymmetricPanel());
-        panels.put(NAV_ITEMS[2], new JsonFieldPanel());
-        panels.put(NAV_ITEMS[3], new MessageFormatPanel());
-        panels.put(NAV_ITEMS[4], new SignaturePanel());
-        panels.put(NAV_ITEMS[5], new DigestPanel());
-        panels.put(NAV_ITEMS[6], new EncodePanel());
-        panels.put(NAV_ITEMS[7], new QRPanel());
-        panels.put(NAV_ITEMS[8], new KeyManagerPanel());
-        panels.put(NAV_ITEMS[9], new SettingsPanel());
+        for (String[] tools : NAV_GROUPS.values()) {
+            for (String tool : tools) {
+                panels.put(tool, createPanel(tool));
+            }
+        }
         for (Map.Entry<String, JPanel> e : panels.entrySet()) {
             contentPanel.add(e.getValue(), e.getKey());
         }
@@ -106,45 +109,82 @@ public class MainWindow extends JFrame {
     }
 
     private JPanel buildNav() {
-        DefaultListModel<String> model = new DefaultListModel<>();
-        for (String item : NAV_ITEMS) {
-            model.addElement(item);
+        DefaultMutableTreeNode root = new DefaultMutableTreeNode("KitBox");
+        for (Map.Entry<String, String[]> group : NAV_GROUPS.entrySet()) {
+            DefaultMutableTreeNode groupNode = new DefaultMutableTreeNode(group.getKey());
+            for (String tool : group.getValue()) {
+                groupNode.add(new DefaultMutableTreeNode(tool));
+            }
+            root.add(groupNode);
         }
-        JList<String> list = new JList<>(model);
-        list.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
-        list.setCellRenderer(new DefaultListCellRenderer() {
+        JTree tree = new JTree(root);
+        tree.setRootVisible(false);
+        tree.setShowsRootHandles(true);
+        tree.setRowHeight(26);
+        tree.setCellRenderer(new javax.swing.tree.DefaultTreeCellRenderer() {
             @Override
-            public Component getListCellRendererComponent(JList<?> list, Object value, int index,
-                                                          boolean selected, boolean focused) {
-                Component c = super.getListCellRendererComponent(list, value, index, selected, focused);
-                if (c instanceof javax.swing.JLabel) {
+            public java.awt.Component getTreeCellRendererComponent(JTree tree, Object value, boolean sel,
+                                                                   boolean expanded, boolean leaf, int row,
+                                                                   boolean focus) {
+                java.awt.Component c = super.getTreeCellRendererComponent(tree, value, sel, expanded, leaf, row, focus);
+                if (!leaf && c instanceof javax.swing.JLabel) {
+                    // 分组节点加粗，突出层级
                     javax.swing.JLabel label = (javax.swing.JLabel) c;
-                    label.setBorder(BorderFactory.createEmptyBorder(8, 12, 8, 8));
-                    Font font = label.getFont().deriveFont(Font.PLAIN, label.getFont().getSize2D() + 1f);
-                    label.setFont(font);
+                    label.setFont(label.getFont().deriveFont(java.awt.Font.BOLD));
                 }
                 return c;
             }
         });
-        list.addMouseListener(new MouseAdapter() {
-            @Override
-            public void mouseClicked(MouseEvent e) {
-                if (e.getClickCount() == 1) {
-                    showCard(list.getSelectedValue());
-                }
-            }
-        });
-        list.addListSelectionListener(e -> {
-            if (!e.getValueIsAdjusting()) {
-                showCard(list.getSelectedValue());
+        for (int i = 0; i < tree.getRowCount(); i++) {
+            tree.expandRow(i);
+        }
+        tree.addTreeSelectionListener(e -> {
+            Object node = tree.getLastSelectedPathComponent();
+            if (node != null && tree.getModel().isLeaf(node)) {
+                showCard(node.toString());
             }
         });
 
         JPanel panel = new JPanel(new BorderLayout());
         panel.setBorder(BorderFactory.createMatteBorder(0, 0, 0, 1, new Color(200, 200, 200)));
-        panel.add(new javax.swing.JScrollPane(list), BorderLayout.CENTER);
-        list.setSelectedIndex(0);
+        panel.add(new JScrollPane(tree), BorderLayout.CENTER);
+        tree.setSelectionRow(1);
         return panel;
+    }
+
+    private JPanel createPanel(String name) {
+        switch (name) {
+            case "对称加解密":
+                return new SymmetricPanel();
+            case "非对称加解密":
+                return new AsymmetricPanel();
+            case "加签 / 验签":
+                return new SignaturePanel();
+            case "摘要与 HMAC":
+                return new DigestPanel();
+            case "JSON 字段加解密":
+                return new JsonFieldPanel();
+            case "报文格式加解密":
+                return new MessageFormatPanel();
+            case "密钥库":
+                return new KeyManagerPanel();
+            case "编码转换":
+                return new EncodePanel();
+            case "JSON 工具":
+                return new JsonToolsPanel();
+            case "转换工具":
+                return new ConvertPanel();
+            case "二维码工具":
+                return new QRPanel();
+            case "文件批量校验":
+                return new FileChecksumPanel();
+            case "密码生成器":
+                return new PasswordGenPanel();
+            case "设置":
+                return new SettingsPanel();
+            default:
+                throw new IllegalArgumentException("未知面板：" + name);
+        }
     }
 
     private void showCard(String name) {
@@ -163,10 +203,11 @@ public class MainWindow extends JFrame {
         int w = Math.max(960, AppContext.config.getWindowWidth());
         int h = Math.max(640, AppContext.config.getWindowHeight());
         setSize(w, h);
+        setMinimumSize(new Dimension(900, 600));
         setLocationRelativeTo(null);
         setVisible(true);
         SwingUtilities.invokeLater(() -> {
-            JPanel panel = panels.get(NAV_ITEMS[8]);
+            JPanel panel = panels.get("密钥库");
             if (panel instanceof KeyManagerPanel) {
                 ((KeyManagerPanel) panel).refreshState();
             }

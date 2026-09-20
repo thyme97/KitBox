@@ -113,7 +113,8 @@ public final class KeyCodec {
                 ECNamedCurveParameterSpec spec = ECNamedCurveTable.getParameterSpec(SM2_CURVE_NAME);
                 org.bouncycastle.math.ec.ECPoint q = spec.getCurve().decodePoint(raw);
                 return new ECPublicKeyParameters(q, SM2_DOMAIN);
-            } catch (IllegalArgumentException ignored) {
+            } catch (IllegalArgumentException e) {
+                throw new CryptoException("该公钥点不在 SM2（sm2p256v1）曲线上，请确认这对密钥是否为 SM2 曲线密钥");
             }
         }
         if (raw.length == 64) {
@@ -144,13 +145,25 @@ public final class KeyCodec {
         } catch (CryptoException e) {
             throw e;
         } catch (Exception e) {
-            throw new CryptoException("无法解析 SM2 公钥：支持 X.509(Base64/PEM) 或裸点格式 04|X|Y");
+            throw new CryptoException("无法解析 SM2 公钥：支持 X.509(Base64/PEM) 或裸点 04|X|Y；"
+                    + "若粘贴的是 Hex 请确认『格式』为 Hex");
         }
     }
 
     public static ECPrivateKeyParameters parseSm2PrivateKey(String text, KeyFormat fmt) throws CryptoException {
         byte[] raw = readKeyBytes(text, fmt);
-        // 裸私钥：32 字节大端 d 值
+        // 裸私钥：32 字节大端 d 值；容忍部分工具导出时补符号位的前导 00（33/34 字节）
+        if (raw.length >= 32 && raw.length <= 34) {
+            int first = 0;
+            while (first < raw.length - 32 && raw[first] == 0x00) {
+                first++;
+            }
+            if (raw.length - first == 32) {
+                byte[] key32 = new byte[32];
+                System.arraycopy(raw, first, key32, 0, 32);
+                raw = key32;
+            }
+        }
         if (raw.length == 32) {
             BigInteger d = new BigInteger(1, raw);
             if (d.signum() <= 0) {
@@ -174,7 +187,8 @@ public final class KeyCodec {
         } catch (CryptoException e) {
             throw e;
         } catch (Exception e) {
-            throw new CryptoException("无法解析 SM2 私钥：支持 PKCS8(Base64/PEM) 或 32 字节裸私钥(Hex/Base64)");
+            throw new CryptoException("无法解析 SM2 私钥：支持 PKCS8(Base64/PEM) 或 32 字节裸私钥(Hex/Base64)；"
+                    + "若粘贴的是 Hex 请确认『格式』为 Hex");
         }
     }
 
@@ -206,6 +220,37 @@ public final class KeyCodec {
     public static String pemFromPrivateBase64(String base64) {
         byte[] der = java.util.Base64.getDecoder().decode(base64.replaceAll("\\s+", ""));
         return PemUtils.buildPem(PemUtils.TYPE_PRIVATE_KEY, der);
+    }
+
+    /** SM2 公钥（X.509 Base64）→ 裸点编码（04|X|Y，65 字节）的 Hex。 */
+    public static String sm2PublicRawHex(String jcaPublicBase64) throws CryptoException {
+        try {
+            return HexUtils.encode(parseSm2PublicKey(jcaPublicBase64, KeyFormat.BASE64).getQ().getEncoded(false));
+        } catch (CryptoException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new CryptoException("SM2 公钥裸点编码失败：" + e.getMessage(), e);
+        }
+    }
+
+    /** SM2 私钥（PKCS8 Base64）→ 裸私钥 D 的 Hex（左填充到 32 字节）。 */
+    public static String sm2PrivateRawHex(String jcaPrivateBase64) throws CryptoException {
+        try {
+            byte[] raw = new byte[32];
+            byte[] src = parseSm2PrivateKey(jcaPrivateBase64, KeyFormat.BASE64).getD().toByteArray();
+            if (src.length == 32) {
+                raw = src;
+            } else if (src.length > 32) {
+                System.arraycopy(src, src.length - 32, raw, 0, 32);
+            } else {
+                System.arraycopy(src, 0, raw, 32 - src.length, src.length);
+            }
+            return HexUtils.encode(raw);
+        } catch (CryptoException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new CryptoException("SM2 私钥裸值编码失败：" + e.getMessage(), e);
+        }
     }
 
     /** SM2 轻量公钥参数 → X.509 DER 的 Base64（便于存储与交换）。 */
@@ -246,15 +291,42 @@ public final class KeyCodec {
         }
         switch (fmt) {
             case HEX:
-                return HexUtils.decode(trimmed);
+                return hexThenBase64(trimmed);
             case BASE64:
-                return java.util.Base64.getDecoder().decode(trimmed.replaceAll("\\s+", ""));
+                return base64ThenHex(trimmed);
             case PEM:
                 // 无 PEM 头则按裸 Base64 解析
                 return java.util.Base64.getDecoder().decode(trimmed.replaceAll("\\s+", ""));
             case PLAIN:
             default:
                 throw new CryptoException("非对称密钥请使用 Base64 / Hex / PEM 格式");
+        }
+    }
+
+    /** 用户常把 Hex 贴进 Base64（或反之），失败时按另一格式重试一次。 */
+    private static byte[] hexThenBase64(String text) throws CryptoException {
+        try {
+            return HexUtils.decode(text);
+        } catch (RuntimeException e) {
+            try {
+                return java.util.Base64.getDecoder().decode(text.replaceAll("\\s+", ""));
+            } catch (RuntimeException e2) {
+                throw new CryptoException("内容既不是合法 Hex 也不是 Base64，请检查『格式』选择");
+            }
+        }
+    }
+
+    private static byte[] base64ThenHex(String text) throws CryptoException {
+        String compact = text.replaceAll("\\s+", "");
+        // 纯十六进制字符串几乎总能被 Base64 解码器“静默”解出乱数据（0-9A-F 都是合法 Base64 字符），
+        // 而真实密钥的 Base64 几乎必然含 M/I/G 等非 hex 字符，故纯 hex 内容优先按 Hex 解。
+        if (compact.matches("(?i)[0-9a-f]+") && compact.length() % 2 == 0) {
+            return HexUtils.decode(compact);
+        }
+        try {
+            return java.util.Base64.getDecoder().decode(compact);
+        } catch (RuntimeException e) {
+            throw new CryptoException("内容不是合法 Base64；若是 Hex，请将『格式』切换为 Hex");
         }
     }
 

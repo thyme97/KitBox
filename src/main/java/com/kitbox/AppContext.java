@@ -15,15 +15,12 @@ import java.security.Security;
 
 /**
  * 应用上下文：全局持有配置与密钥库。
- * 数据目录默认 ~/.kitbox，可通过 ~/.kitbox/data-dir.txt 指针文件重定向；
- * 首次运行时会自动把旧版 ~/.mytools 目录下的数据迁移过来。
+ * 数据目录默认 ~/.kitbox，可通过 ~/.kitbox/data-dir.txt 指针文件重定向。
  */
 public final class AppContext {
 
     /** 指针文件名：内容为数据目录的绝对路径（位于默认目录 ~/.kitbox 下，固定不可移动） */
     public static final String POINTER_FILE = "data-dir.txt";
-    /** 旧版数据目录名（仅迁移时读取） */
-    public static final String LEGACY_DIR_NAME = ".mytools";
 
     public static Path dataDir;
     public static AppConfig config;
@@ -50,64 +47,20 @@ public final class AppContext {
         return defaultDir().resolve(POINTER_FILE);
     }
 
-    /** 旧版默认数据目录 ~/.mytools（若存在则触发自动迁移）。 */
-    public static Path legacyDefaultDir() {
-        return Paths.get(System.getProperty("user.home"), LEGACY_DIR_NAME);
-    }
-
-    /**
-     * 解析当前数据目录：
-     * 1. ~/.kitbox/data-dir.txt 指针优先；
-     * 2. ~/.kitbox 已存在则直接使用；
-     * 3. 旧 ~/.mytools 存在 → 迁移其中的 config.json / keystore.dat 到 ~/.kitbox；
-     * 4. 都没有 → 使用 ~/.kitbox（全新）。
-     */
+    /** 解析当前数据目录：优先 ~/.kitbox/data-dir.txt 指针，否则 ~/.kitbox。 */
     private static Path resolveDataDir() {
-        Path newDef = defaultDir();
-        Path legacyDef = legacyDefaultDir();
+        Path def = defaultDir();
         try {
-            Path newPointer = newDef.resolve(POINTER_FILE);
-            if (Files.isRegularFile(newPointer)) {
-                Path pointed = readPointer(newPointer);
+            Path pointer = def.resolve(POINTER_FILE);
+            if (Files.isRegularFile(pointer)) {
+                Path pointed = readPointer(pointer);
                 if (pointed != null) {
                     return pointed;
                 }
-            }
-            Path legacyPointer = legacyDef.resolve(POINTER_FILE);
-            if (Files.isRegularFile(legacyPointer)) {
-                Path pointed = readPointer(legacyPointer);
-                if (pointed != null) {
-                    // 旧指针迁移：沿用其指向的目录
-                    Files.createDirectories(newDef);
-                    Files.write(newPointer, pointed.toString().getBytes(StandardCharsets.UTF_8));
-                    return pointed;
-                }
-            }
-            if (Files.isDirectory(newDef)) {
-                return newDef;
-            }
-            if (Files.isDirectory(legacyDef)) {
-                migrateDataFiles(legacyDef, newDef);
-                return newDef;
             }
         } catch (Exception ignored) {
-            // 迁移失败时回退到新默认目录
         }
-        return newDef;
-    }
-
-    /** 把旧目录的数据文件复制到新目录（新目录已有同名文件时不覆盖）。 */
-    private static void migrateDataFiles(Path legacyDef, Path newDef) throws IOException {
-        Files.createDirectories(newDef);
-        copyIfMissing(legacyDef.resolve("config.json"), newDef.resolve("config.json"));
-        copyIfMissing(legacyDef.resolve("keystore.dat"), newDef.resolve("keystore.dat"));
-    }
-
-    private static void copyIfMissing(Path source, Path target) throws IOException {
-        if (Files.isRegularFile(source) && !Files.exists(target)) {
-            Files.createDirectories(target.getParent());
-            Files.copy(source, target, StandardCopyOption.REPLACE_EXISTING);
-        }
+        return def;
     }
 
     private static Path readPointer(Path pointer) {

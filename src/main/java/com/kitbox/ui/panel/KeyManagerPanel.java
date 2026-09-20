@@ -300,8 +300,7 @@ public class KeyManagerPanel extends JPanel {
             return "（条目数据不完整）";
         }
         if (entry.getType().getKind() == KeyEntryType.Kind.KEYPAIR) {
-            return "公钥(Base64)：\n" + KeyStoreCodec.partValueJson(value, "publicKey")
-                    + "\n\n私钥(Base64)：\n" + KeyStoreCodec.partValueJson(value, "privateKey");
+            return prettyKeyPair(entry.getType(), value);
         }
         if (entry.getType().getKind() == KeyEntryType.Kind.SYMMETRIC
                 || entry.getType().getKind() == KeyEntryType.Kind.HMAC) {
@@ -320,6 +319,38 @@ public class KeyManagerPanel extends JPanel {
             }
         }
         return value;
+    }
+
+    /** 密钥对详情：公私钥各显示 Base64 / Hex / PEM，SM2 额外显示裸点与裸私钥 Hex。 */
+    private String prettyKeyPair(KeyEntryType type, String value) {
+        boolean sm2 = type == KeyEntryType.SM2_KEYPAIR;
+        String pubB64 = KeyStoreCodec.partValueJson(value, "publicKey");
+        String privB64 = KeyStoreCodec.partValueJson(value, "privateKey");
+
+        StringBuilder sb = new StringBuilder();
+        sb.append("公钥(Base64)：\n").append(pubB64);
+        sb.append("\n\n公钥(Hex)：\n").append(safeFormat(() -> HexUtils.encode(java.util.Base64.getDecoder().decode(pubB64))));
+        sb.append("\n\n公钥(PEM)：\n").append(safeFormat(() -> KeyCodec.pemFromPublicBase64(pubB64)));
+        if (sm2) {
+            sb.append("\n\n公钥裸点 Hex（04|X|Y，65 字节）：\n").append(safeFormat(() -> KeyCodec.sm2PublicRawHex(pubB64)));
+        }
+
+        sb.append("\n\n私钥(Base64)：\n").append(privB64);
+        sb.append("\n\n私钥(Hex)：\n").append(safeFormat(() -> HexUtils.encode(java.util.Base64.getDecoder().decode(privB64))));
+        sb.append("\n\n私钥(PEM)：\n").append(safeFormat(() -> KeyCodec.pemFromPrivateBase64(privB64)));
+        if (sm2) {
+            sb.append("\n\n私钥裸值 Hex（D，32 字节）：\n").append(safeFormat(() -> KeyCodec.sm2PrivateRawHex(privB64)));
+        }
+        return sb.toString();
+    }
+
+    /** 单项展示失败不影响整页详情。 */
+    private static String safeFormat(java.util.concurrent.Callable<String> supplier) {
+        try {
+            return supplier.call();
+        } catch (Exception e) {
+            return "（无法显示：" + e.getMessage() + "）";
+        }
     }
 
     private String formatTime(String iso) {

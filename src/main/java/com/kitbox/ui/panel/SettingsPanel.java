@@ -77,7 +77,7 @@ public class SettingsPanel extends JPanel {
         templatePanel.add(templateButtons, BorderLayout.SOUTH);
 
         JLabel about = new JLabel("<html><div style='margin:8px'>"
-                + "<b>KitBox 工具箱 v1.0.0</b><br>"
+                + "<b>KitBox 工具箱 v1.1.0</b><br>"
                 + "本地离线工具，配置保存在 ~/.kitbox/config.json，密钥库保存在 ~/.kitbox/keystore.dat（设密码时加密，无密码时明文）。<br>"
                 + "基于 JDK 内置 JCE + BouncyCastle（国密）+ ZXing + FlatLaf。</div></html>");
 
