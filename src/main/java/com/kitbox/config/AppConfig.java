@@ -8,8 +8,8 @@ import java.util.List;
  */
 public class AppConfig {
 
-    /** 界面主题：light / dark */
-    private String theme = "light";
+    /** 界面主题：system（跟随系统深浅色）/ light / dark */
+    private String theme = "system";
     /** 全局字体大小 */
     private int fontSize = 13;
     /** 对称加解密默认输出编码：BASE64 / HEX */

@@ -22,6 +22,8 @@ import javax.swing.JTextField;
 import java.awt.BorderLayout;
 import java.awt.CardLayout;
 import java.awt.Color;
+import java.awt.Component;
+import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.Font;
 import java.awt.GridBagConstraints;
@@ -82,7 +84,22 @@ public class SignaturePanel extends JPanel {
     private final KeyPickerField hmacKeyField = new KeyPickerField(
             EnumSet.of(KeyEntryType.Kind.HMAC), null, true);
     private final CardLayout keyCards = new CardLayout();
-    private final JPanel keyCardPanel = new JPanel(keyCards);
+    /**
+     * 差异项卡片（SM2→签名者ID / HMAC→密钥 / RSA→空）。
+     * 首选尺寸按当前可见卡片计算：否则最宽的 HMAC 卡片会撑大整行，
+     * 导致「算法 / 原文格式 / 签名值编码 / 签名者ID」一行放不下。
+     */
+    private final JPanel keyCardPanel = new JPanel(keyCards) {
+        @Override
+        public Dimension getPreferredSize() {
+            for (Component c : getComponents()) {
+                if (c.isVisible()) {
+                    return c.getPreferredSize();
+                }
+            }
+            return super.getPreferredSize();
+        }
+    };
     private final JLabel verifyResult = new JLabel(" ");
     private final TextIOPane io = new TextIOPane("原文输入（验签时签名值取自下方结果区）", "签名值 / 验签结果");
 
@@ -91,15 +108,12 @@ public class SignaturePanel extends JPanel {
 
         JPanel top = new JPanel(new BorderLayout());
         top.add(buildParamForm(), BorderLayout.NORTH);
-        top.add(SwingUtils.hintArea("提示：SM2 签名者 ID 默认 1234567812345678（需与对方一致）；验签时签名值取自结果区；对二进制数据加签时原文格式选 Hex；HMAC 密钥支持明文/Base64/Hex 或从密钥库选择。"), BorderLayout.SOUTH);
 
-        JPanel buttonBar = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 4));
         JButton sign = new JButton("加签");
         JButton verify = new JButton("验签");
         JButton clear = new JButton("全部清空");
-        buttonBar.add(sign);
-        buttonBar.add(verify);
-        buttonBar.add(clear);
+        SwingUtils.stylePrimary(sign);
+        SwingUtils.styleSecondary(verify);
         sign.addActionListener(e -> SwingUtils.runWithCatch(this, this::sign));
         verify.addActionListener(e -> SwingUtils.runWithCatch(this, this::verify));
         clear.addActionListener(e -> {
@@ -109,7 +123,9 @@ public class SignaturePanel extends JPanel {
         verifyResult.setFont(verifyResult.getFont().deriveFont(Font.BOLD, 14f));
 
         JPanel center = new JPanel(new BorderLayout());
-        center.add(buttonBar, BorderLayout.NORTH);
+        center.add(SwingUtils.actionBar(
+                new javax.swing.JComponent[]{sign, verify},
+                new javax.swing.JComponent[]{clear}), BorderLayout.NORTH);
         center.add(verifyResult, BorderLayout.SOUTH);
         JPanel south = new JPanel(new BorderLayout());
         south.add(io, BorderLayout.CENTER);
@@ -124,77 +140,54 @@ public class SignaturePanel extends JPanel {
 
     private JPanel buildParamForm() {
         JPanel form = new JPanel(new GridBagLayout());
-        GridBagConstraints gbc = new GridBagConstraints();
-        gbc.insets = new Insets(3, 6, 3, 6);
-        gbc.anchor = GridBagConstraints.WEST;
+        GridBagConstraints outer = new GridBagConstraints();
+        outer.gridx = 0;
+        outer.weightx = 1;
+        outer.fill = GridBagConstraints.HORIZONTAL;
 
-        gbc.gridx = 0;
-        gbc.gridy = 0;
-        form.add(new JLabel("算法："), gbc);
-        gbc.gridx = 1;
-        form.add(algoCombo, gbc);
-        gbc.gridx = 2;
-        form.add(new JLabel("原文格式："), gbc);
-        gbc.gridx = 3;
-        form.add(contentFormatCombo, gbc);
-        gbc.gridx = 4;
-        form.add(new JLabel("签名值编码："), gbc);
-        gbc.gridx = 5;
-        form.add(sigEncodingCombo, gbc);
-
-        // 公钥 / 私钥行：RSA 与 SM2 共用（同一组件实例，不能重复加入不同卡片）
-        gbc.gridx = 0;
-        gbc.gridy = 1;
-        gbc.gridwidth = 1;
-        gbc.fill = GridBagConstraints.NONE;
-        gbc.weightx = 0;
-        form.add(new JLabel("公钥（验签）："), gbc);
-        gbc.gridx = 1;
-        gbc.gridwidth = 4;
-        gbc.fill = GridBagConstraints.HORIZONTAL;
-        gbc.weightx = 1;
-        publicKeyArea.setLineWrap(true);
-        publicKeyArea.setRows(3);
-        publicKeyArea.setFont(SwingUtils.monoFont(publicKeyArea.getFont().getSize()));
-        form.add(new JScrollPane(publicKeyArea), gbc);
-        gbc.gridwidth = 1;
-        gbc.fill = GridBagConstraints.NONE;
-        gbc.weightx = 0;
-        gbc.gridx = 5;
-        form.add(pubControls(), gbc);
-
-        gbc.gridx = 0;
-        gbc.gridy = 2;
-        form.add(new JLabel("私钥（加签）："), gbc);
-        gbc.gridx = 1;
-        gbc.gridwidth = 4;
-        gbc.fill = GridBagConstraints.HORIZONTAL;
-        gbc.weightx = 1;
-        privateKeyArea.setLineWrap(true);
-        privateKeyArea.setRows(3);
-        privateKeyArea.setFont(SwingUtils.monoFont(privateKeyArea.getFont().getSize()));
-        form.add(new JScrollPane(privateKeyArea), gbc);
-        gbc.gridwidth = 1;
-        gbc.fill = GridBagConstraints.NONE;
-        gbc.weightx = 0;
-        gbc.gridx = 5;
-        form.add(privControls(), gbc);
-
-        // 差异项卡片：SM2 → 签名者 ID；HMAC → 密钥；RSA → 空
-        gbc.gridx = 0;
-        gbc.gridy = 3;
-        gbc.gridwidth = 6;
-        gbc.fill = GridBagConstraints.HORIZONTAL;
-        gbc.weightx = 1;
-        form.add(keyCardPanel, gbc);
-        gbc.gridwidth = 1;
-
+        // 第一行：算法 / 原文格式 / 签名值编码 + 差异项（SM2→签名者ID、HMAC→密钥、RSA→无）
+        // WrapLayout：窗口宽度不足时整行折行且高度按实际行数计算，避免组件被裁成一条缝
+        JPanel paramRow = new JPanel(new com.kitbox.ui.components.WrapLayout(FlowLayout.LEFT, 6, 4));
+        paramRow.setBorder(javax.swing.BorderFactory.createEmptyBorder(3, 8, 3, 8));
+        paramRow.add(new JLabel("算法："));
+        paramRow.add(algoCombo);
+        paramRow.add(new JLabel("原文格式："));
+        paramRow.add(contentFormatCombo);
+        paramRow.add(new JLabel("签名值编码："));
+        paramRow.add(sigEncodingCombo);
         JPanel sm2IdCard = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 2));
+        sm2IdCard.setOpaque(false);
         sm2IdCard.add(new JLabel("签名者ID："));
         sm2IdCard.add(sm2IdField);
         keyCardPanel.add(sm2IdCard, SigAlgorithm.Kind.SM2.name());
         keyCardPanel.add(buildHmacCard(), SigAlgorithm.Kind.HMAC.name());
         keyCardPanel.add(new JPanel(), SigAlgorithm.Kind.RSA.name());
+        paramRow.add(keyCardPanel);
+        outer.gridy = 0;
+        form.add(paramRow, outer);
+
+        // 公钥 / 私钥行：行隔离，输入区拉伸、格式与密钥库按钮靠右
+        publicKeyArea.setLineWrap(true);
+        publicKeyArea.setRows(3);
+        publicKeyArea.setFont(SwingUtils.monoFont(publicKeyArea.getFont().getSize()));
+        privateKeyArea.setLineWrap(true);
+        privateKeyArea.setRows(3);
+        privateKeyArea.setFont(SwingUtils.monoFont(privateKeyArea.getFont().getSize()));
+
+        JPanel pubRow = new JPanel(new BorderLayout(6, 0));
+        pubRow.setBorder(javax.swing.BorderFactory.createEmptyBorder(3, 8, 3, 8));
+        pubRow.add(new JLabel("公钥（验签）："), BorderLayout.WEST);
+        pubRow.add(new JScrollPane(publicKeyArea), BorderLayout.CENTER);
+        pubRow.add(pubControls(), BorderLayout.EAST);
+        JPanel privRow = new JPanel(new BorderLayout(6, 0));
+        privRow.setBorder(javax.swing.BorderFactory.createEmptyBorder(3, 8, 3, 8));
+        privRow.add(new JLabel("私钥（加签）："), BorderLayout.WEST);
+        privRow.add(new JScrollPane(privateKeyArea), BorderLayout.CENTER);
+        privRow.add(privControls(), BorderLayout.EAST);
+        outer.gridy = 1;
+        form.add(pubRow, outer);
+        outer.gridy = 2;
+        form.add(privRow, outer);
         return form;
     }
 

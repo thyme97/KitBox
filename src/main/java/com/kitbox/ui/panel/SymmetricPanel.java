@@ -61,8 +61,6 @@ public class SymmetricPanel extends JPanel {
     private JPanel buildTextTab() {
         JPanel panel = new JPanel(new BorderLayout());
 
-        JPanel top = new JPanel(new BorderLayout());
-        top.add(paramsForm, BorderLayout.NORTH);
         JPanel encodingRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 0));
         encodingRow.setBorder(BorderFactory.createEmptyBorder(0, 12, 4, 12));
         encodingRow.add(new JLabel("密文编码："));
@@ -73,25 +71,25 @@ public class SymmetricPanel extends JPanel {
         contentHint.setFont(contentHint.getFont().deriveFont(java.awt.Font.PLAIN,
                 contentHint.getFont().getSize2D() - 1f));
         encodingRow.add(contentHint);
-        top.add(encodingRow, BorderLayout.SOUTH);
 
-        JPanel buttonBar = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 4));
         JButton encrypt = new JButton("加密");
         JButton decrypt = new JButton("解密");
         JButton clear = new JButton("全部清空");
-        buttonBar.add(encrypt);
-        buttonBar.add(decrypt);
-        buttonBar.add(clear);
-
+        SwingUtils.stylePrimary(encrypt);
+        SwingUtils.styleSecondary(decrypt);
         encrypt.addActionListener(e -> SwingUtils.runWithCatch(this, this::doEncrypt));
         decrypt.addActionListener(e -> SwingUtils.runWithCatch(this, this::doDecrypt));
         clear.addActionListener(e -> io.clearAll());
 
-        panel.add(top, BorderLayout.NORTH);
-        panel.add(buttonBar, BorderLayout.CENTER);
-        JPanel south = new JPanel(new BorderLayout());
-        south.add(io, BorderLayout.CENTER);
-        panel.add(south, BorderLayout.SOUTH);
+        // 参数、编码与操作按钮固定在顶部，输入/输出区吃剩余空间，避免按钮被挤没
+        JPanel north = new JPanel(new BorderLayout());
+        north.add(paramsForm, BorderLayout.NORTH);
+        north.add(encodingRow, BorderLayout.CENTER);
+        north.add(SwingUtils.actionBar(
+                new javax.swing.JComponent[]{encrypt, decrypt},
+                new javax.swing.JComponent[]{clear}), BorderLayout.SOUTH);
+        panel.add(north, BorderLayout.NORTH);
+        panel.add(io, BorderLayout.CENTER);
         return panel;
     }
 
@@ -163,7 +161,6 @@ public class SymmetricPanel extends JPanel {
         form.addField("密钥：", keyField);
         form.addField("源文件：", rowWithButton(sourceField, browseSource));
         form.addField("目标文件：", rowWithButton(targetField, browseTarget));
-        form.addHint("文件格式：CBFX 头 + 元数据 + GCM 密文（随机 IV 自动生成）。加密输出为本工具自有格式，仅能由本工具解密。");
         form.addGlue();
 
         browseSource.addActionListener(e -> chooseFile(sourceField, false));
@@ -172,6 +169,8 @@ public class SymmetricPanel extends JPanel {
         JPanel buttonBar = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 4));
         JButton encrypt = new JButton("加密文件");
         JButton decrypt = new JButton("解密文件");
+        SwingUtils.stylePrimary(encrypt);
+        SwingUtils.styleSecondary(decrypt);
         buttonBar.add(encrypt);
         buttonBar.add(decrypt);
         buttonBar.setBorder(BorderFactory.createEmptyBorder(4, 12, 4, 12));

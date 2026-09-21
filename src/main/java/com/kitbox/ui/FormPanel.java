@@ -20,8 +20,16 @@ public class FormPanel extends JPanel {
         super(new GridBagLayout());
     }
 
-    /** 添加一行「标签 + 控件」。 */
+    /** 添加一行「标签 + 控件」，控件横向拉伸占满剩余宽度（适合文本框）。 */
     public void addField(String label, JComponent field) {
+        addField(label, field, true);
+    }
+
+    /**
+     * 添加一行「标签 + 控件」。stretch=false 时不拉伸，
+     * 适合下拉框、数字框等固定宽度的控件，避免被拉成通栏长条。
+     */
+    public void addField(String label, JComponent field, boolean stretch) {
         gbc.gridx = 0;
         gbc.gridy = row;
         gbc.gridwidth = 1;
@@ -32,8 +40,8 @@ public class FormPanel extends JPanel {
         add(new JLabel(label), gbc);
 
         gbc.gridx = 1;
-        gbc.weightx = 1;
-        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.weightx = stretch ? 1 : 0;
+        gbc.fill = stretch ? GridBagConstraints.HORIZONTAL : GridBagConstraints.NONE;
         gbc.insets = new Insets(4, 0, 4, 8);
         add(field, gbc);
         row++;

@@ -15,6 +15,8 @@ import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JTextField;
+import java.awt.BorderLayout;
+import java.awt.FlowLayout;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.Insets;
@@ -50,65 +52,17 @@ public class SymmetricParamsForm extends JPanel {
 
     public SymmetricParamsForm() {
         super(new GridBagLayout());
-        GridBagConstraints gbc = new GridBagConstraints();
-        gbc.insets = new Insets(3, 6, 3, 6);
-        gbc.anchor = GridBagConstraints.WEST;
-        gbc.fill = GridBagConstraints.NONE;
-        gbc.weightx = 0;
+        GridBagConstraints outer = new GridBagConstraints();
+        outer.gridx = 0;
+        outer.weightx = 1;
+        outer.fill = GridBagConstraints.HORIZONTAL;
 
-        gbc.gridx = 0;
-        gbc.gridy = 0;
-        add(new JLabel("算法："), gbc);
-        gbc.gridx = 1;
-        add(wrapCombo(algoCombo, 90), gbc);
-
-        gbc.gridx = 2;
-        add(new JLabel("模式："), gbc);
-        gbc.gridx = 3;
-        add(wrapCombo(modeCombo, 80), gbc);
-
-        gbc.gridx = 4;
-        add(new JLabel("填充："), gbc);
-        gbc.gridx = 5;
-        add(wrapCombo(paddingCombo, 110), gbc);
-
-        gbc.gridx = 0;
-        gbc.gridy = 1;
-        add(keyLabel(), gbc);
-        gbc.gridx = 1;
-        gbc.gridwidth = 3;
-        gbc.fill = GridBagConstraints.HORIZONTAL;
-        gbc.weightx = 1;
-        add(keyField, gbc);
-        gbc.gridwidth = 1;
-        gbc.fill = GridBagConstraints.NONE;
-        gbc.weightx = 0;
-
-        gbc.gridx = 0;
-        gbc.gridy = 2;
-        add(ivLabel, gbc);
-        JPanel ivPanel = new JPanel(new java.awt.BorderLayout(4, 0));
-        ivPanel.add(ivField, java.awt.BorderLayout.CENTER);
-        JPanel ivRight = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 4, 0));
-        JButton randomIv = new JButton("随机");
-        randomIv.addActionListener(e -> randomIv());
-        ivRight.add(randomIv);
-        ivRight.add(wrapCombo(ivFormatCombo, 90));
-        ivPanel.add(ivRight, java.awt.BorderLayout.EAST);
-        gbc.gridx = 1;
-        gbc.fill = GridBagConstraints.HORIZONTAL;
-        gbc.weightx = 1;
-        add(ivPanel, gbc);
-
-        gbc.gridx = 2;
-        add(tagLabel, gbc);
-        gbc.gridx = 3;
-        add(wrapCombo(tagCombo, 80), gbc);
-
-        gbc.gridx = 4;
-        gbc.gridy = 1;
-        gbc.insets = new Insets(3, 12, 3, 6);
-        add(randomKeyButton(), gbc);
+        outer.gridy = 0;
+        add(algoRow(), outer);
+        outer.gridy = 1;
+        add(keyRow(), outer);
+        outer.gridy = 2;
+        add(ivRow(), outer);
 
         tagCombo.setSelectedIndex(0);
         modeCombo.addActionListener(e -> refreshState());
@@ -116,8 +70,53 @@ public class SymmetricParamsForm extends JPanel {
         refreshState();
     }
 
-    private JLabel keyLabel() {
-        return new JLabel("密钥：");
+    /** 算法行：独立面板，避免跨行列宽互相拉扯。 */
+    private JComponent algoRow() {
+        JPanel row = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
+        row.setBorder(javax.swing.BorderFactory.createEmptyBorder(3, 8, 3, 8));
+        row.add(SwingUtils.groupLabel("算法"));
+        row.add(wrapCombo(algoCombo, 90));
+        row.add(new JLabel("模式："));
+        row.add(wrapCombo(modeCombo, 80));
+        row.add(new JLabel("填充："));
+        row.add(wrapCombo(paddingCombo, 150));
+        return row;
+    }
+
+    /** 密钥行：密钥输入拉伸占满，随机密钥按钮靠右。 */
+    private JComponent keyRow() {
+        JPanel row = new JPanel(new BorderLayout(6, 0));
+        row.setBorder(javax.swing.BorderFactory.createEmptyBorder(3, 8, 3, 8));
+        row.add(SwingUtils.groupLabel("密钥"), BorderLayout.WEST);
+        row.add(keyField, BorderLayout.CENTER);
+        JButton randomKey = randomKeyButton();
+        row.add(randomKey, BorderLayout.EAST);
+        return row;
+    }
+
+    /** IV / GCM Tag 行（按模式显隐）。 */
+    private JComponent ivRow() {
+        JPanel row = new JPanel(new BorderLayout(6, 0));
+        row.setBorder(javax.swing.BorderFactory.createEmptyBorder(3, 8, 3, 8));
+        row.add(ivLabel, BorderLayout.WEST);
+
+        JPanel ivCenter = new JPanel(new java.awt.BorderLayout(4, 0));
+        ivCenter.setOpaque(false);
+        ivCenter.add(ivField, java.awt.BorderLayout.CENTER);
+        JPanel ivRight = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 4, 0));
+        JButton randomIv = new JButton("随机");
+        randomIv.addActionListener(e -> randomIv());
+        ivRight.add(randomIv);
+        ivRight.add(wrapCombo(ivFormatCombo, 90));
+        ivCenter.add(ivRight, java.awt.BorderLayout.EAST);
+        row.add(ivCenter, BorderLayout.CENTER);
+
+        JPanel tagPart = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
+        tagPart.setOpaque(false);
+        tagPart.add(tagLabel);
+        tagPart.add(wrapCombo(tagCombo, 80));
+        row.add(tagPart, BorderLayout.EAST);
+        return row;
     }
 
     private JButton randomKeyButton() {

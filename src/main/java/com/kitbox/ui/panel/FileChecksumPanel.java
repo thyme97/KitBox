@@ -12,6 +12,7 @@ import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
 import javax.swing.DefaultListModel;
+import javax.swing.UIManager;
 import javax.swing.SwingWorker;
 import javax.swing.TransferHandler;
 import java.awt.BorderLayout;
@@ -37,7 +38,7 @@ public class FileChecksumPanel extends JPanel {
             new JComboBox<>(ChecksumService.FileAlg.values());
     private final DefaultListModel<Path> fileModel = new DefaultListModel<>();
     private final JList<Path> fileList = new JList<>(fileModel);
-    private final JTextArea resultArea = new JTextArea(12, 40);
+    private final javax.swing.JTextPane resultPane = new javax.swing.JTextPane();
 
     /** 最近一次「计算哈希」的结果，供生成清单使用。 */
     private List<ChecksumService.FileHash> lastHashes = new ArrayList<>();
@@ -88,7 +89,7 @@ public class FileChecksumPanel extends JPanel {
             }
         });
         JScrollPane listScroll = new JScrollPane(fileList);
-        listScroll.setBorder(BorderFactory.createTitledBorder("文件列表（可从资源管理器拖入）"));
+        listScroll.setBorder(SwingUtils.cardBorder("文件列表（可从资源管理器拖入）"));
         listScroll.setPreferredSize(new Dimension(100, 130));
 
         JButton hashButton = new JButton("计算哈希");
@@ -107,10 +108,10 @@ public class FileChecksumPanel extends JPanel {
         buttonBar.add(saveManifest);
         buttonBar.add(verifyButton);
 
-        resultArea.setEditable(false);
-        resultArea.setFont(mono());
-        JScrollPane resultScroll = new JScrollPane(resultArea);
-        resultScroll.setBorder(BorderFactory.createTitledBorder("结果"));
+        resultPane.setEditable(false);
+        resultPane.setFont(mono());
+        JScrollPane resultScroll = new JScrollPane(resultPane);
+        resultScroll.setBorder(SwingUtils.cardBorder("结果"));
 
         JPanel south = new JPanel(new BorderLayout());
         south.add(buttonBar, BorderLayout.NORTH);
@@ -145,8 +146,8 @@ public class FileChecksumPanel extends JPanel {
             paths.add(fileModel.get(i));
         }
         ChecksumService.FileAlg alg = (ChecksumService.FileAlg) algCombo.getSelectedItem();
-        resultArea.setText("");
-        resultArea.append("正在计算…（" + alg.getDisplay() + "）\n");
+        resultPane.setText("");
+        appendResult("正在计算…（" + alg.getDisplay() + "）\n");
 
         SwingWorker<List<ChecksumService.FileHash>, ChecksumService.FileHash> worker =
                 new SwingWorker<List<ChecksumService.FileHash>, ChecksumService.FileHash>() {
@@ -173,7 +174,7 @@ public class FileChecksumPanel extends JPanel {
                     @Override
                     protected void process(List<ChecksumService.FileHash> chunks) {
                         for (ChecksumService.FileHash hash : chunks) {
-                            resultArea.append(renderHash(hash));
+                            appendResult(renderHash(hash));
                         }
                     }
 
@@ -181,7 +182,7 @@ public class FileChecksumPanel extends JPanel {
                     protected void done() {
                         try {
                             lastHashes = get();
-                            resultArea.append("完成，共 " + lastHashes.size() + " 个文件。\n");
+                            appendResult("完成，共 " + lastHashes.size() + " 个文件。\n");
                         } catch (Exception e) {
                             SwingUtils.error(FileChecksumPanel.this, "计算失败：" + e.getMessage());
                         }
@@ -195,12 +196,12 @@ public class FileChecksumPanel extends JPanel {
             SwingUtils.error(this, "请先「计算哈希」");
             return;
         }
-        resultArea.setText(ChecksumService.buildManifest(lastHashes));
-        resultArea.append("\n（清单已生成：可「另存清单」，或直接复制内容）\n");
+        resultPane.setText(ChecksumService.buildManifest(lastHashes));
+        appendResult("\n（清单已生成：可「另存清单」，或直接复制内容）\n");
     }
 
     private void saveManifest() {
-        if (resultArea.getText().trim().isEmpty()) {
+        if (resultPane.getText().trim().isEmpty()) {
             SwingUtils.error(this, "结果区为空，请先计算哈希或生成清单");
             return;
         }
@@ -213,7 +214,7 @@ public class FileChecksumPanel extends JPanel {
         }
         Path target = chooser.getSelectedFile().toPath();
         try {
-            Files.write(target, resultArea.getText().getBytes(StandardCharsets.UTF_8));
+            Files.write(target, resultPane.getText().getBytes(StandardCharsets.UTF_8));
             SwingUtils.info(this, "清单已保存：" + target);
         } catch (IOException e) {
             SwingUtils.error(this, "保存失败：" + e.getMessage());
@@ -228,7 +229,7 @@ public class FileChecksumPanel extends JPanel {
         }
         File manifestFile = chooser.getSelectedFile();
         ChecksumService.FileAlg alg = (ChecksumService.FileAlg) algCombo.getSelectedItem();
-        resultArea.setText("正在校验…（算法：" + alg.getDisplay() + "，基准目录：" + manifestFile.getParent() + "）\n");
+        resultPane.setText("正在校验…（算法：" + alg.getDisplay() + "，基准目录：" + manifestFile.getParent() + "）\n");
 
         SwingWorker<List<ChecksumService.VerifyItem>, Object[]> worker =
                 new SwingWorker<List<ChecksumService.VerifyItem>, Object[]>() {
@@ -254,7 +255,7 @@ public class FileChecksumPanel extends JPanel {
                         try {
                             get();
                         } catch (Exception e) {
-                            resultArea.setText("");
+                            resultPane.setText("");
                             SwingUtils.error(FileChecksumPanel.this, "校验失败：" + e.getMessage());
                         }
                     }
@@ -269,23 +270,59 @@ public class FileChecksumPanel extends JPanel {
         for (ChecksumService.VerifyItem item : items) {
             switch (item.status) {
                 case OK:
-                    resultArea.append("✓ " + item.name + "  " + item.actual + "\n");
+                    appendResult("✓ " + item.name + "  " + item.actual + "\n", okColor());
                     ok++;
                     break;
                 case MISMATCH:
-                    resultArea.append("✗ " + item.name + "  不匹配（期望 " + item.expected + "，实际 " + item.actual + "）\n");
+                    appendResult("✗ " + item.name + "  不匹配（期望 " + item.expected
+                            + "，实际 " + item.actual + "）\n", badColor());
                     mismatch++;
                     break;
                 default:
-                    resultArea.append("⚠ " + item.name + "  缺失\n");
+                    appendResult("⚠ " + item.name + "  缺失\n", warnColor());
                     missing++;
                     break;
             }
         }
-        resultArea.append(String.format("校验完成：%d 通过，%d 不匹配，%d 缺失（共 %d）。%n", ok, mismatch, missing, items.size()));
+        appendResult(String.format("校验完成：%d 通过，%d 不匹配，%d 缺失（共 %d）。%n",
+                ok, mismatch, missing, items.size()));
         if (mismatch == 0 && missing == 0) {
-            resultArea.append("全部通过。\n");
+            appendResult("全部通过。\n", okColor());
         }
+    }
+
+    /** 向结果区追加文本；color 为 null 时用默认前景色。 */
+    private void appendResult(String text, java.awt.Color color) {
+        javax.swing.text.SimpleAttributeSet attrs = new javax.swing.text.SimpleAttributeSet();
+        if (color != null) {
+            javax.swing.text.StyleConstants.setForeground(attrs, color);
+        }
+        try {
+            resultPane.getDocument().insertString(
+                    resultPane.getDocument().getLength(), text, attrs);
+        } catch (javax.swing.text.BadLocationException ignored) {
+        }
+    }
+
+    private void appendResult(String text) {
+        appendResult(text, null);
+    }
+
+    private static java.awt.Color themedColor(String key, int fallbackRgb) {
+        java.awt.Color color = UIManager.getColor(key);
+        return color != null ? color : new java.awt.Color(fallbackRgb);
+    }
+
+    private static java.awt.Color okColor() {
+        return themedColor("Actions.Green", 0x2E7D32);
+    }
+
+    private static java.awt.Color badColor() {
+        return themedColor("Actions.Red", 0xC62828);
+    }
+
+    private static java.awt.Color warnColor() {
+        return themedColor("Actions.Yellow", 0xB26A00);
     }
 
     private static String renderHash(ChecksumService.FileHash hash) {

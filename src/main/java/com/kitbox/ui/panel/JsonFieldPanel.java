@@ -50,9 +50,9 @@ public class JsonFieldPanel extends JPanel {
 
         JPanel editorPanel = new JPanel(new java.awt.GridLayout(1, 2, 8, 0));
         javax.swing.JScrollPane jsonScroll = new javax.swing.JScrollPane(jsonArea);
-        jsonScroll.setBorder(javax.swing.BorderFactory.createTitledBorder("JSON 输入"));
+        jsonScroll.setBorder(SwingUtils.cardBorder("JSON 输入"));
         javax.swing.JScrollPane pathsScroll = new javax.swing.JScrollPane(pathsArea);
-        pathsScroll.setBorder(javax.swing.BorderFactory.createTitledBorder(
+        pathsScroll.setBorder(SwingUtils.cardBorder(
                 "字段路径（每行一条，如 $.data.idCard、$.list[*].phone）"));
         editorPanel.add(jsonScroll);
         editorPanel.add(pathsScroll);
@@ -79,15 +79,12 @@ public class JsonFieldPanel extends JPanel {
 
 
 
-        JPanel buttonBar = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 4));
         JButton encrypt = new JButton("加密字段");
         JButton decrypt = new JButton("解密字段");
         JButton copy = new JButton("复制结果");
         JButton clear = new JButton("全部清空");
-        buttonBar.add(encrypt);
-        buttonBar.add(decrypt);
-        buttonBar.add(copy);
-        buttonBar.add(clear);
+        SwingUtils.stylePrimary(encrypt);
+        SwingUtils.styleSecondary(decrypt);
         encrypt.addActionListener(e -> SwingUtils.runWithCatch(this, () -> process(true)));
         decrypt.addActionListener(e -> SwingUtils.runWithCatch(this, () -> process(false)));
         copy.addActionListener(e -> {
@@ -102,22 +99,23 @@ public class JsonFieldPanel extends JPanel {
         });
 
         JPanel outputPanel = new JPanel(new BorderLayout());
-        outputPanel.setBorder(javax.swing.BorderFactory.createTitledBorder("结果"));
+        outputPanel.setBorder(SwingUtils.cardBorder("结果"));
         outputPanel.add(new JScrollPane(outputArea), BorderLayout.CENTER);
 
         JPanel formWrap = new JPanel(new BorderLayout());
         formWrap.add(form, BorderLayout.NORTH);
-        formWrap.add(SwingUtils.hintArea("字段值 = Base64(随机IV ‖ GCM密文)；解密按同一格式解析，其余字段原样保留；密钥可从密钥库选择。"), BorderLayout.SOUTH);
         JPanel north = new JPanel(new BorderLayout());
         north.add(editorPanel, BorderLayout.CENTER);
         north.add(formWrap, BorderLayout.SOUTH);
 
-        JPanel center = new JPanel(new BorderLayout());
-        center.add(buttonBar, BorderLayout.NORTH);
-
         add(north, BorderLayout.NORTH);
-        add(center, BorderLayout.CENTER);
-        add(outputPanel, BorderLayout.SOUTH);
+        JPanel buttonBar = SwingUtils.actionBar(
+                new javax.swing.JComponent[]{encrypt, decrypt},
+                new javax.swing.JComponent[]{copy, clear});
+        JPanel south = new JPanel(new BorderLayout());
+        south.add(buttonBar, BorderLayout.NORTH);
+        south.add(outputPanel, BorderLayout.CENTER);
+        add(south, BorderLayout.CENTER);
     }
 
     private void process(boolean encrypt) throws CryptoException {

@@ -49,22 +49,19 @@ public class DigestPanel extends JPanel {
         com.kitbox.ui.FormPanel form = new com.kitbox.ui.FormPanel();
         form.addField("算法：", rowOf(algoCombo, hmacCheck));
         form.addField("HMAC 算法：", rowOf(hmacCombo, keyField));
-        form.addField("原文格式：", contentFormatCombo);
-        form.addField("输出格式：", outputFormatCombo);
-        form.addHint("HMAC 模式需要密钥：支持明文 / Base64 / Hex，或从密钥库选择。");
+        form.addField("原文格式：", contentFormatCombo, false);
+        form.addField("输出格式：", outputFormatCombo, false);
         form.addGlue();
 
         JPanel comparePanel = new JPanel(new BorderLayout(6, 0));
-        comparePanel.setBorder(javax.swing.BorderFactory.createTitledBorder("摘要比对（可选）"));
+        comparePanel.setBorder(SwingUtils.cardBorder("摘要比对（可选）"));
         comparePanel.add(compareField, BorderLayout.CENTER);
         compareResult.setFont(compareResult.getFont().deriveFont(Font.BOLD));
         comparePanel.add(compareResult, BorderLayout.EAST);
 
-        JPanel buttonBar = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 4));
         JButton compute = new JButton("计算摘要");
         JButton clear = new JButton("全部清空");
-        buttonBar.add(compute);
-        buttonBar.add(clear);
+        SwingUtils.stylePrimary(compute);
         compute.addActionListener(e -> SwingUtils.runWithCatch(this, this::compute));
         clear.addActionListener(e -> {
             io.clearAll();
@@ -72,17 +69,14 @@ public class DigestPanel extends JPanel {
         });
 
         JPanel north = new JPanel(new BorderLayout());
-        north.add(form, BorderLayout.CENTER);
-        north.add(comparePanel, BorderLayout.SOUTH);
-
-        JPanel center = new JPanel(new BorderLayout());
-        center.add(buttonBar, BorderLayout.NORTH);
-        JPanel south = new JPanel(new BorderLayout());
-        south.add(io, BorderLayout.CENTER);
-        center.add(south, BorderLayout.CENTER);
+        north.add(form, BorderLayout.NORTH);
+        north.add(comparePanel, BorderLayout.CENTER);
+        north.add(SwingUtils.actionBar(
+                new javax.swing.JComponent[]{compute},
+                new javax.swing.JComponent[]{clear}), BorderLayout.SOUTH);
 
         add(north, BorderLayout.NORTH);
-        add(center, BorderLayout.CENTER);
+        add(io, BorderLayout.CENTER);
 
         updateKeyState();
         hmacCheck.addActionListener(e -> updateKeyState());

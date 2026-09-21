@@ -18,7 +18,7 @@ class ConfigStoreTest {
         ConfigStore store = new ConfigStore(tempDir.resolve("config.json"));
         AppConfig config = store.load();
         // 默认值
-        assertEquals("light", config.getTheme());
+        assertEquals("system", config.getTheme());
         assertTrue(config.getTemplates().isEmpty());
 
         config.setTheme("dark");
@@ -42,6 +42,6 @@ class ConfigStoreTest {
         Path file = tempDir.resolve("broken.json");
         java.nio.file.Files.write(file, "{ not valid json !!".getBytes(java.nio.charset.StandardCharsets.UTF_8));
         AppConfig config = new ConfigStore(file).load();
-        assertEquals("light", config.getTheme());
+        assertEquals("system", config.getTheme());
     }
 }

@@ -129,6 +129,10 @@ public class KeyManagerPanel extends JPanel {
         JButton restore = new JButton("导入备份…");
         JButton changePwd = new JButton("修改密码…");
         JButton lock = new JButton("锁定");
+        SwingUtils.stylePrimary(gen);
+        SwingUtils.styleSecondary(imp);
+        SwingUtils.styleDanger(del);
+        SwingUtils.styleDanger(delScenario);
         toolbar.add(gen);
         toolbar.add(imp);
         toolbar.add(edit);
@@ -139,11 +143,16 @@ public class KeyManagerPanel extends JPanel {
         toolbar.add(renameScenario);
         toolbar.add(delScenario);
         toolbar.add(separator());
-        toolbar.add(backup);
-        toolbar.add(restore);
-        toolbar.add(changePwd);
-        toolbar.add(separator());
-        toolbar.add(lock);
+        // 低频操作收进「更多…」菜单，缓解按钮洪水
+        JButton more = new JButton("更多…");
+        javax.swing.JPopupMenu moreMenu = new javax.swing.JPopupMenu();
+        moreMenu.add(backup);
+        moreMenu.add(restore);
+        moreMenu.add(changePwd);
+        moreMenu.addSeparator();
+        moreMenu.add(lock);
+        more.addActionListener(e -> moreMenu.show(more, 0, more.getHeight()));
+        toolbar.add(more);
 
         gen.addActionListener(e -> runDialog(() -> new KeyGenDialog(owner(), this::refreshTree).setVisible(true)));
         imp.addActionListener(e -> runDialog(() -> new KeyEntryDialog(owner(), this::refreshTree).setVisible(true)));
@@ -171,7 +180,8 @@ public class KeyManagerPanel extends JPanel {
         tree.addTreeSelectionListener(e -> showDetail());
         detailArea.setEditable(false);
         detailArea.setFont(SwingUtils.monoFont(detailArea.getFont().getSize()));
-        detailArea.setBorder(BorderFactory.createTitledBorder("密钥详情"));
+        detailArea.setBorder(SwingUtils.cardBorder("密钥详情"));
+        detailArea.setText("← 选择左侧密钥查看详情");
 
         JScrollPane treeScroll = new JScrollPane(tree);
         treeScroll.setPreferredSize(new java.awt.Dimension(280, 400));
@@ -280,7 +290,7 @@ public class KeyManagerPanel extends JPanel {
     private void showDetail() {
         KeyEntry entry = selectedEntry();
         if (entry == null) {
-            detailArea.setText("");
+            detailArea.setText("← 选择左侧密钥查看详情");
             return;
         }
         StringBuilder sb = new StringBuilder();

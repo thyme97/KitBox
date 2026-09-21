@@ -39,8 +39,6 @@ public class JsonToolsPanel extends JPanel {
     public JsonToolsPanel() {
         setLayout(new BorderLayout());
 
-        JPanel paramBar = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 6));
-        paramBar.add(indentCombo);
         JButton format = new JButton("格式化");
         JButton compress = new JButton("压缩");
         JButton validate = new JButton("校验");
@@ -48,12 +46,7 @@ public class JsonToolsPanel extends JPanel {
         JButton unescape = new JButton("去转义");
         JButton clear = new JButton("全部清空");
         SwingUtils.uniformSize(format, compress, validate, escape, unescape, clear);
-        paramBar.add(format);
-        paramBar.add(compress);
-        paramBar.add(validate);
-        paramBar.add(escape);
-        paramBar.add(unescape);
-        paramBar.add(clear);
+        SwingUtils.stylePrimary(format);
 
         format.addActionListener(e -> SwingUtils.runWithCatch(this, this::runFormat));
         compress.addActionListener(e -> SwingUtils.runWithCatch(this, this::runCompress));
@@ -62,7 +55,10 @@ public class JsonToolsPanel extends JPanel {
         unescape.addActionListener(e -> SwingUtils.runWithCatch(this, this::runUnescape));
         clear.addActionListener(e -> io.clearAll());
 
-        add(paramBar, BorderLayout.NORTH);
+        JPanel north = SwingUtils.actionBar(
+                new javax.swing.JComponent[]{indentCombo, format, compress, validate},
+                new javax.swing.JComponent[]{escape, unescape, clear});
+        add(north, BorderLayout.NORTH);
         add(io, BorderLayout.CENTER);
     }
 

@@ -114,9 +114,10 @@ public final class KeyGenDialog extends JDialog {
         previewArea.setWrapStyleWord(true);
         previewArea.setFont(SwingUtils.monoFont(previewArea.getFont().getSize()));
         JScrollPane previewScroll = new JScrollPane(previewArea);
-        previewScroll.setBorder(javax.swing.BorderFactory.createTitledBorder("生成结果预览"));
+        previewScroll.setBorder(SwingUtils.cardBorder("生成结果预览"));
 
         JButton generate = new JButton("生成");
+        getRootPane().setDefaultButton(generate);
         saveButton.setEnabled(false);
         JButton cancel = new JButton("取消");
         JPanel buttons = new JPanel(new FlowLayout(FlowLayout.RIGHT));

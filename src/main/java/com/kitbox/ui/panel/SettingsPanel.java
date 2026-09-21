@@ -29,7 +29,7 @@ import java.awt.Window;
  */
 public class SettingsPanel extends JPanel {
 
-    private final JComboBox<String> themeCombo = new JComboBox<>(new String[]{"亮色", "暗色"});
+    private final JComboBox<String> themeCombo = new JComboBox<>(new String[]{"跟随系统", "亮色", "暗色"});
     private final JSpinner fontSizeSpinner = new JSpinner(new SpinnerNumberModel(13, 11, 20, 1));
     private final JComboBox<DataEncoding> defaultEncodingCombo = new JComboBox<>(new DataEncoding[]{
             DataEncoding.BASE64, DataEncoding.HEX});
@@ -53,7 +53,7 @@ public class SettingsPanel extends JPanel {
         FormPanel form = new FormPanel();
         form.addField("主题：", rowOf(themeCombo, applyThemeButton()));
         form.addField("字体大小：", rowOf(fontSizeSpinner, applyFontButton()));
-        form.addField("默认密文输出编码：", defaultEncodingCombo);
+        form.addField("默认密文输出编码：", defaultEncodingCombo, false);
         dataDirField.setEditable(false);
         dataDirField.setText(com.kitbox.AppContext.dataDir.toString());
         JButton changeDir = new JButton("更改存储目录…");
@@ -64,7 +64,7 @@ public class SettingsPanel extends JPanel {
         form.addFull(prettyJsonCheck);
 
         JPanel templatePanel = new JPanel(new BorderLayout());
-        templatePanel.setBorder(javax.swing.BorderFactory.createTitledBorder("报文格式模板（报文格式加解密面板使用）"));
+        templatePanel.setBorder(SwingUtils.cardBorder("报文格式模板（报文格式加解密面板使用）"));
         templateTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         templatePanel.add(new JScrollPane(templateTable), BorderLayout.CENTER);
         JPanel templateButtons = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 4));
@@ -89,7 +89,7 @@ public class SettingsPanel extends JPanel {
         add(about, BorderLayout.SOUTH);
 
         // 初始化 UI 状态
-        themeCombo.setSelectedIndex("dark".equals(AppContext.config.getTheme()) ? 1 : 0);
+        themeCombo.setSelectedIndex(themeIndex(AppContext.config.getTheme()));
         fontSizeSpinner.setValue(AppContext.config.getFontSize());
         try {
             defaultEncodingCombo.setSelectedItem(
@@ -152,13 +152,10 @@ public class SettingsPanel extends JPanel {
     private JButton applyThemeButton() {
         JButton button = new JButton("应用");
         button.addActionListener(e -> {
-            AppContext.config.setTheme(themeCombo.getSelectedIndex() == 1 ? "dark" : "light");
+            int index = themeCombo.getSelectedIndex();
+            AppContext.config.setTheme(index == 2 ? "dark" : index == 1 ? "light" : "system");
             AppContext.saveConfig();
-            UiTheme.apply(AppContext.config);
-            Window window = windowAncestorOf();
-            if (window != null) {
-                javax.swing.SwingUtilities.updateComponentTreeUI(window);
-            }
+            UiTheme.applyAndRefresh(AppContext.config);
         });
         return button;
     }
@@ -168,13 +165,19 @@ public class SettingsPanel extends JPanel {
         button.addActionListener(e -> {
             AppContext.config.setFontSize((Integer) fontSizeSpinner.getValue());
             AppContext.saveConfig();
-            UiTheme.apply(AppContext.config);
-            Window window = windowAncestorOf();
-            if (window != null) {
-                javax.swing.SwingUtilities.updateComponentTreeUI(window);
-            }
+            UiTheme.applyAndRefresh(AppContext.config);
         });
         return button;
+    }
+
+    private static int themeIndex(String theme) {
+        if ("dark".equals(theme)) {
+            return 2;
+        }
+        if ("light".equals(theme)) {
+            return 1;
+        }
+        return 0;
     }
 
     private void changeDataDir() {
@@ -206,10 +209,6 @@ public class SettingsPanel extends JPanel {
         } catch (Exception e) {
             SwingUtils.error(this, "迁移失败：" + e.getMessage());
         }
-    }
-
-    private Window windowAncestorOf() {
-        return javax.swing.SwingUtilities.getWindowAncestor(this);
     }
 
     private void refreshTemplates() {

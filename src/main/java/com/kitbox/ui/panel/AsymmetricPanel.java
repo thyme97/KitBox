@@ -58,22 +58,21 @@ public class AsymmetricPanel extends JPanel {
 
         JPanel top = new JPanel(new BorderLayout());
         top.add(buildParamForm(), BorderLayout.NORTH);
-        top.add(SwingUtils.hintArea("提示：公钥加密 / 私钥解密；SM2 支持裸点公钥 04|X|Y；处理二进制数据时内容格式选 Hex；密文编码用于加密输出与解密输入；密钥可从密钥库选择，或点『生成密钥对』后保存到密钥库。"), BorderLayout.SOUTH);
 
-        JPanel buttonBar = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 4));
         JButton encrypt = new JButton("加密（公钥）");
         JButton decrypt = new JButton("解密（私钥）");
         JButton generate = new JButton("生成密钥对…");
         JButton clear = new JButton("全部清空");
-        buttonBar.add(encrypt);
-        buttonBar.add(decrypt);
-        buttonBar.add(generate);
-        buttonBar.add(clear);
+        SwingUtils.stylePrimary(encrypt);
+        SwingUtils.styleSecondary(decrypt);
         encrypt.addActionListener(e -> SwingUtils.runWithCatch(this, this::encrypt));
         decrypt.addActionListener(e -> SwingUtils.runWithCatch(this, this::decrypt));
         generate.addActionListener(e -> SwingUtils.runWithCatch(this, this::generate));
         clear.addActionListener(e -> io.clearAll());
 
+        JPanel buttonBar = SwingUtils.actionBar(
+                new javax.swing.JComponent[]{encrypt, decrypt},
+                new javax.swing.JComponent[]{generate, clear});
         JPanel center = new JPanel(new BorderLayout());
         center.add(buttonBar, BorderLayout.NORTH);
         JPanel south = new JPanel(new BorderLayout());
@@ -89,66 +88,52 @@ public class AsymmetricPanel extends JPanel {
 
     private JPanel buildParamForm() {
         JPanel form = new JPanel(new GridBagLayout());
-        GridBagConstraints gbc = new GridBagConstraints();
-        gbc.insets = new Insets(3, 6, 3, 6);
-        gbc.anchor = GridBagConstraints.WEST;
+        GridBagConstraints outer = new GridBagConstraints();
+        outer.gridx = 0;
+        outer.weightx = 1;
+        outer.fill = GridBagConstraints.HORIZONTAL;
 
-        gbc.gridx = 0;
-        gbc.gridy = 0;
-        form.add(new javax.swing.JLabel("算法："), gbc);
-        gbc.gridx = 1;
-        form.add(algoCombo, gbc);
-        gbc.gridx = 2;
-        form.add(new javax.swing.JLabel("RSA 填充："), gbc);
-        gbc.gridx = 3;
-        form.add(rsaPaddingCombo, gbc);
-        gbc.gridx = 4;
-        form.add(new javax.swing.JLabel("SM2 排列："), gbc);
-        gbc.gridx = 5;
-        form.add(sm2ModeCombo, gbc);
+        // 算法 + 编码（各一行，独立面板避免列宽拉扯）
+        JPanel algoRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
+        algoRow.setBorder(javax.swing.BorderFactory.createEmptyBorder(3, 8, 3, 8));
+        algoRow.add(SwingUtils.groupLabel("算法"));
+        algoRow.add(algoCombo);
+        algoRow.add(new javax.swing.JLabel("RSA 填充："));
+        algoRow.add(rsaPaddingCombo);
+        algoRow.add(new javax.swing.JLabel("SM2 排列："));
+        algoRow.add(sm2ModeCombo);
+        JPanel encRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
+        encRow.setBorder(javax.swing.BorderFactory.createEmptyBorder(3, 8, 3, 8));
+        encRow.add(SwingUtils.groupLabel("编码"));
+        encRow.add(new javax.swing.JLabel("内容格式："));
+        encRow.add(contentFormatCombo);
+        encRow.add(new javax.swing.JLabel("密文编码："));
+        encRow.add(cipherEncodingCombo);
+        outer.gridy = 0;
+        form.add(algoRow, outer);
+        outer.gridy = 1;
+        form.add(encRow, outer);
 
-        gbc.gridx = 0;
-        gbc.gridy = 1;
-        form.add(new javax.swing.JLabel("内容格式："), gbc);
-        gbc.gridx = 1;
-        form.add(contentFormatCombo, gbc);
-        gbc.gridx = 2;
-        form.add(new javax.swing.JLabel("密文编码："), gbc);
-        gbc.gridx = 3;
-        form.add(cipherEncodingCombo, gbc);
-
-
-        gbc.gridx = 0;
-        gbc.gridy = 2;
-        form.add(new javax.swing.JLabel("公钥："), gbc);
-        gbc.gridx = 1;
-        gbc.gridwidth = 4;
-        gbc.fill = GridBagConstraints.HORIZONTAL;
-        gbc.weightx = 1;
+        // 公钥 / 私钥（标题 + 输入区 + 格式/密钥库按钮）
         publicKeyArea.setLineWrap(true);
         publicKeyArea.setFont(SwingUtils.monoFont(publicKeyArea.getFont().getSize()));
-        form.add(new JScrollPane(publicKeyArea), gbc);
-        gbc.gridwidth = 1;
-        gbc.fill = GridBagConstraints.NONE;
-        gbc.weightx = 0;
-        gbc.gridx = 5;
-        form.add(pubControls(), gbc);
-
-        gbc.gridx = 0;
-        gbc.gridy = 3;
-        form.add(new javax.swing.JLabel("私钥："), gbc);
-        gbc.gridx = 1;
-        gbc.gridwidth = 4;
-        gbc.fill = GridBagConstraints.HORIZONTAL;
-        gbc.weightx = 1;
         privateKeyArea.setLineWrap(true);
         privateKeyArea.setFont(SwingUtils.monoFont(privateKeyArea.getFont().getSize()));
-        form.add(new JScrollPane(privateKeyArea), gbc);
-        gbc.gridwidth = 1;
-        gbc.fill = GridBagConstraints.NONE;
-        gbc.weightx = 0;
-        gbc.gridx = 5;
-        form.add(privControls(), gbc);
+
+        JPanel pubRow = new JPanel(new BorderLayout(6, 0));
+        pubRow.setBorder(javax.swing.BorderFactory.createEmptyBorder(3, 8, 3, 8));
+        pubRow.add(SwingUtils.groupLabel("公钥"), BorderLayout.WEST);
+        pubRow.add(new JScrollPane(publicKeyArea), BorderLayout.CENTER);
+        pubRow.add(pubControls(), BorderLayout.EAST);
+        JPanel privRow = new JPanel(new BorderLayout(6, 0));
+        privRow.setBorder(javax.swing.BorderFactory.createEmptyBorder(3, 8, 3, 8));
+        privRow.add(SwingUtils.groupLabel("私钥"), BorderLayout.WEST);
+        privRow.add(new JScrollPane(privateKeyArea), BorderLayout.CENTER);
+        privRow.add(privControls(), BorderLayout.EAST);
+        outer.gridy = 2;
+        form.add(pubRow, outer);
+        outer.gridy = 3;
+        form.add(privRow, outer);
 
         return form;
     }

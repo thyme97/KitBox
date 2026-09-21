@@ -67,19 +67,18 @@ public class PasswordGenPanel extends JPanel {
         super(new BorderLayout());
 
         FormPanel common = new FormPanel();
-        common.addField("模式", modeCombo);
-        common.addField("数量", new JSpinner(countModel));
-        common.addHint("密码保证每个勾选类别至少出现一次；随机密钥为密码学安全随机数。");
+        common.addField("模式", modeCombo, false);
+        common.addField("数量", new JSpinner(countModel), false);
 
         FormPanel passwordForm = new FormPanel();
-        passwordForm.addField("长度", new JSpinner(lengthModel));
+        passwordForm.addField("长度", new JSpinner(lengthModel), false);
         JPanel classRow = SwingUtils.row(upperCheck, lowerCheck, digitCheck, symbolCheck);
         passwordForm.addFull(classRow);
         passwordForm.addFull(noAmbiguousCheck);
 
         FormPanel keyForm = new FormPanel();
-        keyForm.addField("字节数", new JSpinner(bytesModel));
-        keyForm.addField("编码", keyEncodingCombo);
+        keyForm.addField("字节数", new JSpinner(bytesModel), false);
+        keyForm.addField("编码", keyEncodingCombo, false);
 
         JPanel passwordCard = new JPanel(new BorderLayout());
         passwordCard.add(passwordForm, BorderLayout.NORTH);
@@ -94,6 +93,7 @@ public class PasswordGenPanel extends JPanel {
         JButton copy = new JButton("复制全部");
         JButton clear = new JButton("清空");
         SwingUtils.uniformSize(generate, copy, clear);
+        SwingUtils.stylePrimary(generate);
         generate.addActionListener(e -> SwingUtils.runWithCatch(this, this::generate));
         copy.addActionListener(e -> {
             if (!output.getText().isEmpty()) {
@@ -101,15 +101,14 @@ public class PasswordGenPanel extends JPanel {
             }
         });
         clear.addActionListener(e -> output.setText(""));
-        JPanel buttonBar = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 4));
-        buttonBar.add(generate);
-        buttonBar.add(copy);
-        buttonBar.add(clear);
+        JPanel buttonBar = SwingUtils.actionBar(
+                new javax.swing.JComponent[]{generate, copy},
+                new javax.swing.JComponent[]{clear});
 
         output.setEditable(false);
         output.setFont(mono());
         JPanel outputPanel = new JPanel(new BorderLayout());
-        outputPanel.setBorder(BorderFactory.createTitledBorder("结果（每行一条）"));
+        outputPanel.setBorder(SwingUtils.cardBorder("结果（每行一条）"));
         outputPanel.add(new JScrollPane(output), BorderLayout.CENTER);
 
         JPanel north = new JPanel(new BorderLayout());

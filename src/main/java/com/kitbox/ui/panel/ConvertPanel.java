@@ -65,10 +65,10 @@ public class ConvertPanel extends JPanel {
     private JPanel buildTimestampTab() {
         FormPanel form = new FormPanel();
         form.addField("输入", tsInput);
-        form.addHint("输入 Unix 时间戳（秒或毫秒，自动识别）或日期时间（yyyy-MM-dd HH:mm:ss），点击「转换」自动判向。");
 
         JButton convert = new JButton("转换");
         JButton now = new JButton("当前时间");
+        SwingUtils.stylePrimary(convert);
         convert.addActionListener(e -> SwingUtils.runWithCatch(this, this::convertTimestamp));
         now.addActionListener(e -> {
             tsInput.setText(ConvertToolsService.nowTimestamp(true));
@@ -84,6 +84,7 @@ public class ConvertPanel extends JPanel {
         resultForm.addField("时间戳(秒)", tsSecondsResult);
         resultForm.addField("时间戳(毫秒)", tsMillisResult);
         resultForm.addHint("双击结果框可复制。");
+        resultForm.addGlue();
 
         JPanel panel = new JPanel(new BorderLayout());
         panel.add(form, BorderLayout.NORTH);
@@ -128,16 +129,17 @@ public class ConvertPanel extends JPanel {
     private JPanel buildRadixTab() {
         FormPanel form = new FormPanel();
         form.addField("数值", radixInput);
-        form.addField("源进制", fromBaseCombo);
-        form.addField("目标进制", toBaseCombo);
-        form.addHint("支持 2 ~ 36 进制与大整数，负数保留符号。");
+        form.addField("源进制", fromBaseCombo, false);
+        form.addField("目标进制", toBaseCombo, false);
         JButton convert = new JButton("转换");
+        SwingUtils.stylePrimary(convert);
         convert.addActionListener(e -> SwingUtils.runWithCatch(this, this::convertRadix));
         form.addFull(convert);
 
         radixResult.setEditable(false);
         FormPanel resultForm = new FormPanel();
         resultForm.addField("结果", radixResult);
+        resultForm.addGlue();
 
         JPanel panel = new JPanel(new BorderLayout());
         panel.add(form, BorderLayout.NORTH);
@@ -153,13 +155,14 @@ public class ConvertPanel extends JPanel {
 
     private JPanel buildUuidTab() {
         FormPanel form = new FormPanel();
-        form.addField("数量", uuidCount);
+        form.addField("数量", uuidCount, false);
         form.addFull(uuidUpper);
         form.addFull(uuidNoDashes);
         JButton generate = new JButton("生成");
         JButton copy = new JButton("复制全部");
         JButton clear = new JButton("清空");
         SwingUtils.uniformSize(generate, copy, clear);
+        SwingUtils.stylePrimary(generate);
         generate.addActionListener(e -> SwingUtils.runWithCatch(this, this::generateUuids));
         copy.addActionListener(e -> {
             if (!uuidOutput.getText().isEmpty()) {
@@ -172,7 +175,7 @@ public class ConvertPanel extends JPanel {
         uuidOutput.setEditable(false);
         uuidOutput.setFont(mono());
         JPanel outputPanel = new JPanel(new BorderLayout());
-        outputPanel.setBorder(BorderFactory.createTitledBorder("结果"));
+        outputPanel.setBorder(SwingUtils.cardBorder("结果"));
         outputPanel.add(new JScrollPane(uuidOutput), BorderLayout.CENTER);
 
         JPanel panel = new JPanel(new BorderLayout());
@@ -198,14 +201,14 @@ public class ConvertPanel extends JPanel {
 
     private JPanel buildSnowflakeTab() {
         FormPanel genForm = new FormPanel();
-        genForm.addField("机器 ID", sfWorkerSpinner);
-        genForm.addField("数据中心 ID", sfDcSpinner);
-        genForm.addField("数量", sfCountSpinner);
-        genForm.addHint("结构：1 位符号 + 41 位毫秒时间戳 + 5 位数据中心 + 5 位机器 + 12 位序列，纪元 1288834974657（与 MyBatis-Plus 等主流实现一致）。");
+        genForm.addField("机器 ID", sfWorkerSpinner, false);
+        genForm.addField("数据中心 ID", sfDcSpinner, false);
+        genForm.addField("数量", sfCountSpinner, false);
         JButton generate = new JButton("生成");
         JButton copy = new JButton("复制全部");
         JButton clear = new JButton("清空");
         SwingUtils.uniformSize(generate, copy, clear);
+        SwingUtils.stylePrimary(generate);
         generate.addActionListener(e -> SwingUtils.runWithCatch(this, this::generateSnowflake));
         copy.addActionListener(e -> {
             if (!sfOutput.getText().isEmpty()) {
@@ -218,14 +221,14 @@ public class ConvertPanel extends JPanel {
         sfOutput.setEditable(false);
         sfOutput.setFont(mono());
         JPanel outputPanel = new JPanel(new BorderLayout());
-        outputPanel.setBorder(BorderFactory.createTitledBorder("生成的 ID（每行一条，十进制）"));
+        outputPanel.setBorder(SwingUtils.cardBorder("生成的 ID（每行一条，十进制）"));
         outputPanel.add(new JScrollPane(sfOutput), BorderLayout.CENTER);
 
         FormPanel parseForm = new FormPanel();
-        parseForm.setBorder(BorderFactory.createTitledBorder("解析"));
+        parseForm.setBorder(SwingUtils.cardBorder("解析"));
         parseForm.addField("ID", sfParseInput);
-        parseForm.addHint("支持十进制与 0x 开头的十六进制，可用于排查重复 ID 的来源与时间。");
         JButton parse = new JButton("解析");
+        SwingUtils.styleSecondary(parse);
         parse.addActionListener(e -> SwingUtils.runWithCatch(this, this::parseSnowflake));
         parseForm.addFull(parse);
         sfTimeResult.setEditable(false);

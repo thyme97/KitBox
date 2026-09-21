@@ -10,6 +10,7 @@ import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
+import javax.swing.UIManager;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Font;
@@ -31,17 +32,18 @@ public class TextIOPane extends JPanel {
         outputArea.setFont(mono);
 
         JPanel inputPanel = new JPanel(new BorderLayout());
-        inputPanel.setBorder(BorderFactory.createTitledBorder(inputTitle));
-        inputPanel.add(buildToolbar(inputArea, true), BorderLayout.NORTH);
+        inputPanel.setBorder(SwingUtils.cardLineBorder());
+        inputPanel.add(captionRow(inputTitle, buildToolbar(inputArea, true)), BorderLayout.NORTH);
         inputPanel.add(new JScrollPane(inputArea), BorderLayout.CENTER);
 
         JPanel outputPanel = new JPanel(new BorderLayout());
-        outputPanel.setBorder(BorderFactory.createTitledBorder(outputTitle));
-        outputPanel.add(buildToolbar(outputArea, false), BorderLayout.NORTH);
+        outputPanel.setBorder(SwingUtils.cardLineBorder());
+        outputPanel.add(captionRow(outputTitle, buildToolbar(outputArea, false)), BorderLayout.NORTH);
         outputPanel.add(new JScrollPane(outputArea), BorderLayout.CENTER);
 
         status.setFont(status.getFont().deriveFont(Font.PLAIN, status.getFont().getSize2D() - 1f));
-        status.setForeground(new Color(120, 120, 120));
+        Color hintColor = UIManager.getColor("Label.disabledForeground");
+        status.setForeground(hintColor != null ? hintColor : new Color(120, 120, 120));
 
         add(inputPanel);
         add(Box.createVerticalStrut(6));
@@ -49,10 +51,20 @@ public class TextIOPane extends JPanel {
         add(status);
     }
 
+    /** 卡片内标题行：标题居左、工具条按钮居右，省去独立的一行按钮。 */
+    private JPanel captionRow(String title, JPanel toolbar) {
+        JPanel row = new JPanel(new BorderLayout());
+        row.setOpaque(false);
+        row.setBorder(javax.swing.BorderFactory.createEmptyBorder(2, 10, 0, 6));
+        row.add(SwingUtils.groupLabel(title), BorderLayout.WEST);
+        row.add(toolbar, BorderLayout.EAST);
+        return row;
+    }
+
     private JPanel buildToolbar(JTextArea area, boolean isInput) {
-        JPanel bar = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 4, 2));
+        JPanel bar = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.RIGHT, 2, 0));
         if (isInput) {
-            JButton paste = new JButton("粘贴");
+            JButton paste = SwingUtils.iconButton("clipboard-paste", "粘贴", "粘贴");
             paste.addActionListener(e -> {
                 try {
                     String text = (String) java.awt.Toolkit.getDefaultToolkit().getSystemClipboard()
@@ -65,7 +77,7 @@ public class TextIOPane extends JPanel {
             });
             bar.add(paste);
         }
-        JButton copy = new JButton("复制");
+        JButton copy = SwingUtils.iconButton("copy", "复制", "复制");
         copy.addActionListener(e -> {
             if (!area.getText().isEmpty()) {
                 SwingUtils.copyToClipboard(area.getText());
@@ -73,7 +85,7 @@ public class TextIOPane extends JPanel {
             }
         });
         bar.add(copy);
-        JButton clear = new JButton("清空");
+        JButton clear = SwingUtils.iconButton("trash-2", "清空", "清空");
         clear.addActionListener(e -> {
             area.setText("");
             note(" ");

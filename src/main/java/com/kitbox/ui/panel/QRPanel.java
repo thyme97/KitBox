@@ -61,7 +61,7 @@ public class QRPanel extends JPanel {
         contentArea.setFont(SwingUtils.monoFont(contentArea.getFont().getSize()));
         contentArea.setLineWrap(true);
         JScrollPane contentScroll = new JScrollPane(contentArea);
-        contentScroll.setBorder(BorderFactory.createTitledBorder("二维码内容（文本 / 链接，按 UTF-8 编码）"));
+        contentScroll.setBorder(SwingUtils.cardBorder("二维码内容（文本 / 链接，按 UTF-8 编码）"));
 
         JPanel form = new JPanel(new GridBagLayout());
         GridBagConstraints gbc = new GridBagConstraints();
@@ -89,23 +89,22 @@ public class QRPanel extends JPanel {
         top.add(contentScroll, BorderLayout.CENTER);
         top.add(form, BorderLayout.SOUTH);
 
-        previewLabel.setBorder(BorderFactory.createTitledBorder("预览"));
+        previewLabel.setBorder(SwingUtils.cardBorder("预览"));
         JScrollPane previewScroll = new JScrollPane(previewLabel);
 
-        JPanel buttonBar = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 4));
         JButton generate = new JButton("生成二维码");
         JButton savePng = new JButton("保存 PNG…");
         JButton copyImage = new JButton("复制图片");
-        buttonBar.add(generate);
-        buttonBar.add(savePng);
-        buttonBar.add(copyImage);
+        SwingUtils.stylePrimary(generate);
         generate.addActionListener(e -> SwingUtils.runWithCatch(this, this::generate));
         savePng.addActionListener(e -> SwingUtils.runWithCatch(this, this::savePng));
         copyImage.addActionListener(e -> SwingUtils.runWithCatch(this, this::copyImage));
 
         panel.add(top, BorderLayout.NORTH);
         panel.add(previewScroll, BorderLayout.CENTER);
-        panel.add(buttonBar, BorderLayout.SOUTH);
+        panel.add(SwingUtils.actionBar(
+                new javax.swing.JComponent[]{generate},
+                new javax.swing.JComponent[]{savePng, copyImage}), BorderLayout.SOUTH);
         return panel;
     }
 
@@ -165,26 +164,23 @@ public class QRPanel extends JPanel {
         form.addGlue();
 
         JButton decode = new JButton("识别");
+        SwingUtils.stylePrimary(decode);
         decode.setAlignmentX(LEFT_ALIGNMENT);
-        JPanel buttonBar = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 4));
-        buttonBar.add(decode);
 
         decodeArea.setEditable(false);
         decodeArea.setFont(SwingUtils.monoFont(decodeArea.getFont().getSize()));
         decodeArea.setLineWrap(true);
         JScrollPane decodeScroll = new JScrollPane(decodeArea);
-        decodeScroll.setBorder(BorderFactory.createTitledBorder("识别结果"));
+        decodeScroll.setBorder(SwingUtils.cardBorder("识别结果"));
         JButton copy = new JButton("复制结果");
         copy.addActionListener(e -> {
             if (!decodeArea.getText().isEmpty()) {
                 SwingUtils.copyToClipboard(decodeArea.getText());
             }
         });
-        JPanel southButtons = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 4));
-        southButtons.add(copy);
 
         decodePreview.setPreferredSize(new java.awt.Dimension(200, 200));
-        decodePreview.setBorder(BorderFactory.createTitledBorder("图片预览"));
+        decodePreview.setBorder(SwingUtils.cardBorder("图片预览"));
 
         JPanel center = new JPanel(new BorderLayout());
         center.add(decodeScroll, BorderLayout.CENTER);
@@ -194,10 +190,9 @@ public class QRPanel extends JPanel {
 
         panel.add(form, BorderLayout.NORTH);
         panel.add(center, BorderLayout.CENTER);
-        JPanel south = new JPanel(new BorderLayout());
-        south.add(buttonBar, BorderLayout.NORTH);
-        south.add(southButtons, BorderLayout.SOUTH);
-        panel.add(south, BorderLayout.SOUTH);
+        panel.add(SwingUtils.actionBar(
+                new javax.swing.JComponent[]{decode},
+                new javax.swing.JComponent[]{copy}), BorderLayout.SOUTH);
         return panel;
     }
 

@@ -44,7 +44,7 @@ public class MessageFormatPanel extends JPanel {
         refreshTemplates();
 
         JPanel form = new JPanel(new GridBagLayout());
-        form.setBorder(javax.swing.BorderFactory.createTitledBorder(
+        form.setBorder(SwingUtils.cardBorder(
                 "报文格式：前缀 + 密文 + 后缀（前后缀可留空，留空即为裸密文）"));
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.insets = new Insets(3, 6, 3, 6);
@@ -97,17 +97,14 @@ public class MessageFormatPanel extends JPanel {
         form.add(paramsForm, gbc);
         gbc.gridwidth = 1;
 
-        JPanel buttonBar = new JPanel(new com.kitbox.ui.components.WrapLayout(FlowLayout.LEFT, 8, 4));
         JButton encrypt = new JButton("加密成报文");
         JButton decrypt = new JButton("解密报文");
         JButton saveTemplate = new JButton("保存为模板…");
         JButton deleteTemplate = new JButton("删除模板");
         JButton clear = new JButton("全部清空");
-        buttonBar.add(encrypt);
-        buttonBar.add(decrypt);
-        buttonBar.add(saveTemplate);
-        buttonBar.add(deleteTemplate);
-        buttonBar.add(clear);
+        SwingUtils.stylePrimary(encrypt);
+        SwingUtils.styleSecondary(decrypt);
+        SwingUtils.styleDanger(deleteTemplate);
         encrypt.addActionListener(e -> SwingUtils.runWithCatch(this, () -> process(true)));
         decrypt.addActionListener(e -> SwingUtils.runWithCatch(this, () -> process(false)));
         saveTemplate.addActionListener(e -> SwingUtils.runWithCatch(this, this::saveTemplate));
@@ -116,7 +113,9 @@ public class MessageFormatPanel extends JPanel {
 
         JPanel north = new JPanel(new BorderLayout());
         north.add(form, BorderLayout.NORTH);
-        north.add(buttonBar, BorderLayout.SOUTH);
+        north.add(SwingUtils.actionBar(
+                new javax.swing.JComponent[]{encrypt, decrypt, saveTemplate},
+                new javax.swing.JComponent[]{deleteTemplate, clear}), BorderLayout.SOUTH);
         add(north, BorderLayout.NORTH);
         add(io, BorderLayout.CENTER);
     }

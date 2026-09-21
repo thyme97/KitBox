@@ -125,7 +125,7 @@ public final class KeyEntryDialog extends JDialog {
         valueArea.setFont(SwingUtils.monoFont(valueArea.getFont().getSize()));
         valueArea.setLineWrap(true);
         JScrollPane singleScroll = new JScrollPane(valueArea);
-        singleScroll.setBorder(javax.swing.BorderFactory.createTitledBorder("密钥值（按下方指引填写）"));
+        singleScroll.setBorder(SwingUtils.cardBorder("密钥值（按下方指引填写）"));
 
         publicKeyArea.setFont(SwingUtils.monoFont(publicKeyArea.getFont().getSize()));
         publicKeyArea.setLineWrap(true);
@@ -140,11 +140,11 @@ public final class KeyEntryDialog extends JDialog {
         pgbc.fill = GridBagConstraints.BOTH;
         pgbc.insets = new Insets(2, 4, 2, 4);
         JScrollPane pubScroll = new JScrollPane(publicKeyArea);
-        pubScroll.setBorder(javax.swing.BorderFactory.createTitledBorder("公钥"));
+        pubScroll.setBorder(SwingUtils.cardBorder("公钥"));
         pairPanel.add(pubScroll, pgbc);
         pgbc.gridy = 1;
         JScrollPane privScroll = new JScrollPane(privateKeyArea);
-        privScroll.setBorder(javax.swing.BorderFactory.createTitledBorder("私钥"));
+        privScroll.setBorder(SwingUtils.cardBorder("私钥"));
         pairPanel.add(privScroll, pgbc);
 
         valueCardPanel.add(singleScroll, "single");
@@ -152,6 +152,7 @@ public final class KeyEntryDialog extends JDialog {
 
         JButton save = new JButton("保存");
         JButton cancel = new JButton("取消");
+        getRootPane().setDefaultButton(save);
         JPanel buttons = new JPanel(new FlowLayout(FlowLayout.RIGHT));
         buttons.add(save);
         buttons.add(cancel);

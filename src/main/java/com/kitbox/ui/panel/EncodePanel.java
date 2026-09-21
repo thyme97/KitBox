@@ -57,23 +57,15 @@ public class EncodePanel extends JPanel {
     public EncodePanel() {
         setLayout(new BorderLayout());
 
-        JPanel paramBar = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 6));
-        paramBar.add(typeCombo);
-        paramBar.add(directionCombo);
-        paramBar.add(urlSafeCheck);
-        paramBar.add(lineBreakCheck);
-
-        JPanel buttonBar = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 4));
         JButton run = new JButton("执行");
         JButton clear = new JButton("全部清空");
-        buttonBar.add(run);
-        buttonBar.add(clear);
+        SwingUtils.stylePrimary(run);
         run.addActionListener(e -> SwingUtils.runWithCatch(this, this::run));
         clear.addActionListener(e -> io.clearAll());
 
-        JPanel north = new JPanel(new BorderLayout());
-        north.add(paramBar, BorderLayout.NORTH);
-        north.add(buttonBar, BorderLayout.SOUTH);
+        JPanel north = SwingUtils.actionBar(
+                new javax.swing.JComponent[]{typeCombo, directionCombo, urlSafeCheck, lineBreakCheck},
+                new javax.swing.JComponent[]{run, clear});
         add(north, BorderLayout.NORTH);
         add(io, BorderLayout.CENTER);
     }
