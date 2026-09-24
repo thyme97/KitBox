@@ -63,6 +63,9 @@ public final class ToolIcons {
         g.translate(ox, oy);
         try {
             switch (name) {
+                case "主页":
+                    drawHome(g);
+                    break;
                 case "对称加解密":
                     drawLock(g);
                     break;
@@ -90,6 +93,9 @@ public final class ToolIcons {
                 case "编码转换":
                     drawSwap(g);
                     break;
+                case "文件 Base64":
+                    drawDocSwap(g);
+                    break;
                 case "转换工具":
                     drawCycle(g);
                     break;
@@ -102,6 +108,9 @@ public final class ToolIcons {
                 case "密码生成器":
                     drawPassword(g);
                     break;
+                case "假数据生成":
+                    drawIdCard(g);
+                    break;
                 case "设置":
                     drawGear(g);
                     break;
@@ -112,6 +121,21 @@ public final class ToolIcons {
         } finally {
             g.dispose();
         }
+    }
+
+    private static void drawHome(Graphics2D g) {
+        Path2D roof = new Path2D.Double();
+        roof.moveTo(2.2, 8.2);
+        roof.lineTo(8, 3);
+        roof.lineTo(13.8, 8.2);
+        g.draw(roof);
+        Path2D wall = new Path2D.Double();
+        wall.moveTo(3.8, 7.2);
+        wall.lineTo(3.8, 13.2);
+        wall.lineTo(12.2, 13.2);
+        wall.lineTo(12.2, 7.2);
+        g.draw(wall);
+        g.draw(new RoundRectangle2D.Double(6.7, 9.4, 2.6, 3.8, 1.2, 1.2));
     }
 
     private static void drawLock(Graphics2D g) {
@@ -193,6 +217,32 @@ public final class ToolIcons {
         g.draw(head2);
     }
 
+    private static void drawDocSwap(Graphics2D g) {
+        Path2D doc = new Path2D.Double();
+        doc.moveTo(3.4, 2.6);
+        doc.lineTo(8.8, 2.6);
+        doc.lineTo(11.8, 5.6);
+        doc.lineTo(11.8, 8.2);
+        g.draw(doc);
+        Path2D fold = new Path2D.Double();
+        fold.moveTo(8.8, 2.6);
+        fold.lineTo(8.8, 5.6);
+        fold.lineTo(11.8, 5.6);
+        g.draw(fold);
+        g.draw(new Line2D.Double(4.4, 7.6, 10.4, 7.6));
+        Path2D head1 = new Path2D.Double();
+        head1.moveTo(8.6, 6.2);
+        head1.lineTo(10.4, 7.6);
+        head1.lineTo(8.6, 9.0);
+        g.draw(head1);
+        g.draw(new Line2D.Double(11.6, 10.8, 5.6, 10.8));
+        Path2D head2 = new Path2D.Double();
+        head2.moveTo(7.4, 9.4);
+        head2.lineTo(5.6, 10.8);
+        head2.lineTo(7.4, 12.2);
+        g.draw(head2);
+    }
+
     private static void drawCycle(Graphics2D g) {
         g.drawArc(3, 3, 10, 10, 40, 140);
         g.drawArc(3, 3, 10, 10, 220, 140);
@@ -244,6 +294,18 @@ public final class ToolIcons {
         g.fill(new Ellipse2D.Double(4.7, 7.1, 1.8, 1.8));
         g.fill(new Ellipse2D.Double(7.1, 7.1, 1.8, 1.8));
         g.fill(new Ellipse2D.Double(9.5, 7.1, 1.8, 1.8));
+    }
+
+    private static void drawIdCard(Graphics2D g) {
+        g.draw(new RoundRectangle2D.Double(2.4, 3.2, 11.2, 9.6, 2, 2));
+        g.draw(new Ellipse2D.Double(4.3, 5.3, 2.8, 2.8));
+        Path2D body = new Path2D.Double();
+        body.moveTo(3.3, 11.3);
+        body.curveTo(3.8, 8.4, 7.6, 8.4, 8.1, 11.3);
+        g.draw(body);
+        g.draw(new Line2D.Double(9.6, 6.0, 12.2, 6.0));
+        g.draw(new Line2D.Double(9.6, 8.3, 12.2, 8.3));
+        g.draw(new Line2D.Double(9.6, 10.6, 11.5, 10.6));
     }
 
     private static void drawGear(Graphics2D g) {

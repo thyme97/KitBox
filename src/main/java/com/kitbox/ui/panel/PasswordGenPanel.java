@@ -98,6 +98,7 @@ public class PasswordGenPanel extends JPanel {
         copy.addActionListener(e -> {
             if (!output.getText().isEmpty()) {
                 SwingUtils.copyToClipboard(output.getText());
+                SwingUtils.showToast(copy, "已复制到剪贴板");
             }
         });
         clear.addActionListener(e -> output.setText(""));
@@ -140,6 +141,7 @@ public class PasswordGenPanel extends JPanel {
         output.setText(sb.toString());
         if (com.kitbox.AppContext.config.isAutoCopyResult()) {
             SwingUtils.copyToClipboard(output.getText().trim());
+            SwingUtils.showToast(output, "结果已自动复制");
         }
     }
 

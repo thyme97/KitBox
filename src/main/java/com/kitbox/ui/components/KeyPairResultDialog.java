@@ -67,8 +67,14 @@ public final class KeyPairResultDialog extends JDialog {
         buttons.add(close);
         add(buttons, BorderLayout.SOUTH);
 
-        copyPub.addActionListener(e -> SwingUtils.copyToClipboard(publicBase64));
-        copyPriv.addActionListener(e -> SwingUtils.copyToClipboard(privateBase64));
+        copyPub.addActionListener(e -> {
+            SwingUtils.copyToClipboard(publicBase64);
+            SwingUtils.showToast(copyPub, "公钥已复制到剪贴板");
+        });
+        copyPriv.addActionListener(e -> {
+            SwingUtils.copyToClipboard(privateBase64);
+            SwingUtils.showToast(copyPriv, "私钥已复制到剪贴板");
+        });
         exportPem.addActionListener(e -> exportPem());
         save.addActionListener(e -> saveToStore());
         close.addActionListener(e -> dispose());

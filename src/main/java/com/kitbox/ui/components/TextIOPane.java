@@ -81,6 +81,7 @@ public class TextIOPane extends JPanel {
         copy.addActionListener(e -> {
             if (!area.getText().isEmpty()) {
                 SwingUtils.copyToClipboard(area.getText());
+                SwingUtils.showToast(copy, "已复制到剪贴板");
                 note("已复制到剪贴板");
             }
         });
@@ -118,6 +119,7 @@ public class TextIOPane extends JPanel {
         outputArea.setText(text);
         if (com.kitbox.AppContext.config.isAutoCopyResult() && text != null && !text.isEmpty()) {
             SwingUtils.copyToClipboard(text);
+            SwingUtils.showToast(outputArea, "结果已自动复制");
             note("已自动复制结果");
         }
     }

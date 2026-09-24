@@ -25,6 +25,8 @@ public class AppConfig {
     private int windowHeight = 740;
     /** 报文格式模板列表 */
     private List<MessageTemplate> templates = new ArrayList<>();
+    /** 最近使用的工具（主页右下角展示，Ctrl+H 打开最近一个），最多保留 5 个 */
+    private List<String> recentTools = new ArrayList<>();
 
     public String getTheme() {
         return theme;
@@ -96,5 +98,13 @@ public class AppConfig {
 
     public void setTemplates(List<MessageTemplate> templates) {
         this.templates = templates;
+    }
+
+    public List<String> getRecentTools() {
+        return recentTools;
+    }
+
+    public void setRecentTools(List<String> recentTools) {
+        this.recentTools = recentTools;
     }
 }

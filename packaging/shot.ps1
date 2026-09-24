@@ -3,6 +3,7 @@ $ErrorActionPreference = "Stop"
 $root = (Split-Path -Parent $PSScriptRoot)
 $map = @{
     default  = ""
+    darkdefault = ""
     json     = "JSON 工具"
     convert  = "转换工具"
     checksum = "文件批量校验"
@@ -17,6 +18,9 @@ $map = @{
     encode   = "编码转换"
     qr       = "二维码工具"
     pwdgen   = "密码生成器"
+    fake     = "假数据生成"
+    fileb64  = "文件 Base64"
+    sym      = "对称加解密"
     keystorelight = "密钥库"
 }
 $java = Join-Path $root "packaging\dist\KitBox\runtime\bin\java.exe"
@@ -27,7 +31,7 @@ $tool = $map[$Key]
 if ($tool -ne "") {
     $jarArgs.Add('"-Dkitbox.tool=' + $tool + '"')
 }
-if ($Key -eq "darkkey") {
+if ($Key -eq "darkkey" -or $Key -eq "darkdefault") {
     $jarArgs.Add("-Dkitbox.theme=dark")
 }
 $jarArgs.Add("-jar")
@@ -44,9 +48,17 @@ public class Win32Shot {
 "@
 
 $proc = Start-Process -FilePath $java -ArgumentList $jarArgs -PassThru -WorkingDirectory $root
-Start-Sleep -Seconds 6
-$proc.Refresh()
-$h = $proc.MainWindowHandle
+# 轮询等待主窗口就绪（最长 30 秒）：机器负载高时 JVM 启动可能远超固定等待
+$h = [IntPtr]::Zero
+for ($i = 0; $i -lt 60; $i++) {
+    Start-Sleep -Milliseconds 500
+    $proc.Refresh()
+    if ($proc.HasExited) { break }
+    if ($proc.MainWindowHandle -ne [IntPtr]::Zero) {
+        $h = $proc.MainWindowHandle
+        break
+    }
+}
 if ($h -ne [IntPtr]::Zero) {
     [Win32Shot]::ShowWindow($h, 9) | Out-Null
     [Win32Shot]::SetForegroundWindow($h) | Out-Null

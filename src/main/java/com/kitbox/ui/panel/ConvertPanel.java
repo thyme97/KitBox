@@ -95,6 +95,7 @@ public class ConvertPanel extends JPanel {
                 public void mouseClicked(MouseEvent e) {
                     if (e.getClickCount() == 2 && !field.getText().isEmpty()) {
                         SwingUtils.copyToClipboard(field.getText());
+                        SwingUtils.showToast(field, "已复制到剪贴板");
                         tsInput.requestFocus();
                     }
                 }
@@ -167,6 +168,7 @@ public class ConvertPanel extends JPanel {
         copy.addActionListener(e -> {
             if (!uuidOutput.getText().isEmpty()) {
                 SwingUtils.copyToClipboard(uuidOutput.getText());
+                SwingUtils.showToast(copy, "已复制到剪贴板");
             }
         });
         clear.addActionListener(e -> uuidOutput.setText(""));
@@ -194,6 +196,7 @@ public class ConvertPanel extends JPanel {
         uuidOutput.setText(sb.toString());
         if (com.kitbox.AppContext.config.isAutoCopyResult()) {
             SwingUtils.copyToClipboard(uuidOutput.getText().trim());
+            SwingUtils.showToast(uuidOutput, "结果已自动复制");
         }
     }
 
@@ -213,6 +216,7 @@ public class ConvertPanel extends JPanel {
         copy.addActionListener(e -> {
             if (!sfOutput.getText().isEmpty()) {
                 SwingUtils.copyToClipboard(sfOutput.getText());
+                SwingUtils.showToast(copy, "已复制到剪贴板");
             }
         });
         clear.addActionListener(e -> sfOutput.setText(""));
@@ -263,6 +267,7 @@ public class ConvertPanel extends JPanel {
         sfOutput.setText(sb.toString());
         if (com.kitbox.AppContext.config.isAutoCopyResult()) {
             SwingUtils.copyToClipboard(sfOutput.getText().trim());
+            SwingUtils.showToast(sfOutput, "结果已自动复制");
         }
     }
 

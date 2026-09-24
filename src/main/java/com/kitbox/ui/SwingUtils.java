@@ -14,9 +14,14 @@ import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.Font;
 import java.awt.FlowLayout;
+import java.awt.Graphics;
+import java.awt.Graphics2D;
 import java.awt.Toolkit;
+import java.awt.datatransfer.DataFlavor;
 import java.awt.datatransfer.StringSelection;
 import java.awt.datatransfer.Clipboard;
+import java.awt.datatransfer.Transferable;
+import java.io.File;
 
 /**
  * Swing 辅助：字体、弹窗、剪贴板、异常包装。
@@ -152,6 +157,236 @@ public final class SwingUtils {
     public static void copyToClipboard(String text) {
         Clipboard clipboard = Toolkit.getDefaultToolkit().getSystemClipboard();
         clipboard.setContents(new StringSelection(text == null ? "" : text), null);
+    }
+
+    private static javax.swing.JWindow activeToast;
+    private static javax.swing.Timer activeToastTimer;
+
+    /** 在锚点控件上方弹出深色圆角小提示（如「已复制」），约 1.2 秒后淡出消失。 */
+    public static void showToast(java.awt.Component anchor, String text) {
+        if (activeToast != null) {
+            activeToast.dispose();
+            activeToast = null;
+        }
+        if (activeToastTimer != null) {
+            activeToastTimer.stop();
+        }
+        final javax.swing.JWindow window = new javax.swing.JWindow();
+        window.setType(java.awt.Window.Type.POPUP);
+        try {
+            window.setFocusableWindowState(false);
+        } catch (Exception ignored) {
+        }
+        javax.swing.JPanel chip = new javax.swing.JPanel() {
+            @Override
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(java.awt.RenderingHints.KEY_ANTIALIASING,
+                        java.awt.RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.setColor(new Color(40, 40, 44, 235));
+                g2.fillRoundRect(0, 0, getWidth(), getHeight(), 18, 18);
+                g2.dispose();
+            }
+        };
+        chip.setOpaque(false);
+        chip.setLayout(new java.awt.GridBagLayout());
+        javax.swing.JLabel label = new javax.swing.JLabel(text, javax.swing.SwingConstants.CENTER);
+        label.setForeground(Color.WHITE);
+        label.setFont(label.getFont().deriveFont(java.awt.Font.PLAIN));
+        chip.setBorder(javax.swing.BorderFactory.createEmptyBorder(7, 16, 8, 16));
+        chip.add(label);
+        window.setBackground(new Color(0, 0, 0, 0));
+        window.add(chip);
+        window.pack();
+        try {
+            java.awt.Point loc = anchor.getLocationOnScreen();
+            java.awt.Rectangle screen = anchor.getGraphicsConfiguration().getBounds();
+            int x = loc.x + (anchor.getWidth() - window.getWidth()) / 2;
+            int y = loc.y - window.getHeight() - 8;
+            if (y < screen.y + 4) {
+                y = loc.y + anchor.getHeight() + 8;
+            }
+            x = Math.max(screen.x + 4, Math.min(x, screen.x + screen.width - window.getWidth() - 4));
+            window.setLocation(x, y);
+        } catch (Exception e) {
+            window.setLocation(200, 200);
+        }
+        window.setAlwaysOnTop(true);
+        window.setVisible(true);
+        activeToast = window;
+        activeToastTimer = new javax.swing.Timer(1200, e -> {
+            ((javax.swing.Timer) e.getSource()).stop();
+            final float[] opacity = {1.0f};
+            javax.swing.Timer fade = new javax.swing.Timer(16, null);
+            fade.addActionListener(e2 -> {
+                opacity[0] -= 0.12f;
+                if (opacity[0] <= 0f) {
+                    fade.stop();
+                    window.dispose();
+                    if (activeToast == window) {
+                        activeToast = null;
+                    }
+                } else {
+                    try {
+                        window.setOpacity(opacity[0]);
+                    } catch (Exception ex) {
+                        fade.stop();
+                        window.dispose();
+                        if (activeToast == window) {
+                            activeToast = null;
+                        }
+                    }
+                }
+            });
+            fade.start();
+        });
+        activeToastTimer.setRepeats(false);
+        activeToastTimer.start();
+    }
+
+    /**
+     * 从剪贴板取内容填充输入框：优先取资源管理器复制的文件路径，
+     * 其次取文本（去除首尾引号）。返回实际填充的文本，剪贴板为空返回 null。
+     */
+    public static String pasteFileOrText(javax.swing.JTextField field) {
+        String text = clipboardFilePathOrText();
+        if (text != null) {
+            field.setText(text);
+        }
+        return text;
+    }
+
+    /** 剪贴板内容：文件路径优先，其次文本；均无返回 null。 */
+    public static String clipboardFilePathOrText() {
+        try {
+            Transferable contents = Toolkit.getDefaultToolkit().getSystemClipboard().getContents(null);
+            if (contents == null) {
+                return null;
+            }
+            if (contents.isDataFlavorSupported(DataFlavor.javaFileListFlavor)) {
+                @SuppressWarnings("unchecked")
+                java.util.List<File> files = (java.util.List<File>)
+                        contents.getTransferData(DataFlavor.javaFileListFlavor);
+                if (!files.isEmpty()) {
+                    return files.get(0).getAbsolutePath();
+                }
+            }
+            if (contents.isDataFlavorSupported(DataFlavor.stringFlavor)) {
+                String text = String.valueOf(contents.getTransferData(DataFlavor.stringFlavor)).trim();
+                if (text.length() >= 2
+                        && ((text.charAt(0) == '"' && text.charAt(text.length() - 1) == '"')
+                        || (text.charAt(0) == '\'' && text.charAt(text.length() - 1) == '\''))) {
+                    text = text.substring(1, text.length() - 1);
+                }
+                return text.isEmpty() ? null : text;
+            }
+        } catch (Exception ignored) {
+        }
+        return null;
+    }
+
+    /** 剪贴板中的图片（截图后直接粘贴），没有返回 null。 */
+    public static java.awt.Image clipboardImage() {
+        try {
+            Transferable contents = Toolkit.getDefaultToolkit().getSystemClipboard().getContents(null);
+            if (contents != null && contents.isDataFlavorSupported(DataFlavor.imageFlavor)) {
+                return (java.awt.Image) contents.getTransferData(DataFlavor.imageFlavor);
+            }
+        } catch (Exception ignored) {
+        }
+        return null;
+    }
+
+    /** 任意 AWT 图像转 BufferedImage（剪贴板位图统一处理用）。 */
+    public static java.awt.image.BufferedImage toBufferedImage(java.awt.Image img) {
+        if (img instanceof java.awt.image.BufferedImage) {
+            return (java.awt.image.BufferedImage) img;
+        }
+        java.awt.image.BufferedImage bi = new java.awt.image.BufferedImage(
+                Math.max(1, img.getWidth(null)), Math.max(1, img.getHeight(null)),
+                java.awt.image.BufferedImage.TYPE_INT_ARGB);
+        java.awt.Graphics2D g = bi.createGraphics();
+        g.drawImage(img, 0, 0, null);
+        g.dispose();
+        return bi;
+    }
+
+    /**
+     * 同步缩放图片到限定尺寸内（保持比例，不超过原尺寸）。
+     * getScaledInstance 是异步的，配 ImageIcon 会在未加载完成时画出异常内容，
+     * 这里用 BufferedImage 一次性绘制，结果立即可用。
+     */
+    public static javax.swing.ImageIcon scaledIcon(java.awt.image.BufferedImage src, int maxWidth, int maxHeight) {
+        int w = src.getWidth();
+        int h = src.getHeight();
+        if (w <= 0 || h <= 0) {
+            return new javax.swing.ImageIcon();
+        }
+        double scale = Math.min(1.0, Math.min((double) maxWidth / w, (double) maxHeight / h));
+        int tw = Math.max(1, (int) Math.round(w * scale));
+        int th = Math.max(1, (int) Math.round(h * scale));
+        java.awt.image.BufferedImage out = new java.awt.image.BufferedImage(tw, th,
+                java.awt.image.BufferedImage.TYPE_INT_ARGB);
+        java.awt.Graphics2D g = out.createGraphics();
+        g.setRenderingHint(java.awt.RenderingHints.KEY_INTERPOLATION,
+                java.awt.RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+        g.drawImage(src, 0, 0, tw, th, null);
+        g.dispose();
+        return new javax.swing.ImageIcon(out);
+    }
+
+    /**
+     * 规范化路径文本：去首尾引号、剥离 file:/// 协议前缀并做 URL 解码
+     * （微信等应用复制的图片常带 file:///E:/... 形式的文本路径）。
+     */
+    public static String normalizeFilePath(String text) {
+        if (text == null) {
+            return null;
+        }
+        String s = text.trim();
+        if (s.length() >= 2
+                && ((s.charAt(0) == '"' && s.charAt(s.length() - 1) == '"')
+                || (s.charAt(0) == '\'' && s.charAt(s.length() - 1) == '\''))) {
+            s = s.substring(1, s.length() - 1).trim();
+        }
+        if (s.regionMatches(true, 0, "file:///", 0, 8)) {
+            s = s.substring(8);
+            try {
+                s = java.net.URLDecoder.decode(s, "UTF-8");
+            } catch (Exception ignored) {
+            }
+        } else if (s.regionMatches(true, 0, "file:", 0, 5)) {
+            try {
+                return java.nio.file.Paths.get(new java.net.URI(s)).toString();
+            } catch (Exception ignored) {
+            }
+        }
+        return s;
+    }
+
+    /** 让组件支持拖入文件（资源管理器/微信拖出的文件，取第一个回调）。 */
+    public static void acceptFileDrop(JComponent target, java.util.function.Consumer<File> handler) {
+        target.setTransferHandler(new javax.swing.TransferHandler() {
+            @Override
+            public boolean canImport(TransferSupport support) {
+                return support.isDataFlavorSupported(DataFlavor.javaFileListFlavor);
+            }
+
+            @Override
+            @SuppressWarnings("unchecked")
+            public boolean importData(TransferSupport support) {
+                try {
+                    java.util.List<File> files = (java.util.List<File>)
+                            support.getTransferable().getTransferData(DataFlavor.javaFileListFlavor);
+                    if (!files.isEmpty()) {
+                        handler.accept(files.get(0));
+                        return true;
+                    }
+                } catch (Exception ignored) {
+                }
+                return false;
+            }
+        });
     }
 
     /** 处理结果输出：按配置决定是否自动复制。 */

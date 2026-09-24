@@ -90,6 +90,7 @@ public class JsonFieldPanel extends JPanel {
         copy.addActionListener(e -> {
             if (!outputArea.getText().isEmpty()) {
                 SwingUtils.copyToClipboard(outputArea.getText());
+                SwingUtils.showToast(copy, "已复制到剪贴板");
             }
         });
         clear.addActionListener(e -> {
@@ -148,6 +149,7 @@ public class JsonFieldPanel extends JPanel {
         outputArea.setText(result);
         if (com.kitbox.AppContext.config.isAutoCopyResult()) {
             SwingUtils.copyToClipboard(result);
+            SwingUtils.showToast(outputArea, "结果已自动复制");
         }
     }
 

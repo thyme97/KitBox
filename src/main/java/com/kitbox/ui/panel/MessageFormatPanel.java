@@ -157,7 +157,16 @@ public class MessageFormatPanel extends JPanel {
         name = name.trim();
         for (MessageTemplate t : AppContext.config.getTemplates()) {
             if (t.getName().equals(name)) {
-                SwingUtils.error(this, "模板已存在：" + name);
+                if (!SwingUtils.confirm(this, "模板已存在：" + name + "，是否用当前前缀/后缀/编码覆盖？")) {
+                    return;
+                }
+                t.setPrefix(prefixField.getText());
+                t.setSuffix(suffixField.getText());
+                t.setContentEncoding(((DataEncoding) encodingCombo.getSelectedItem()).name());
+                AppContext.saveConfig();
+                refreshTemplates();
+                templateCombo.setSelectedItem(name);
+                SwingUtils.info(this, "模板已覆盖：" + name);
                 return;
             }
         }

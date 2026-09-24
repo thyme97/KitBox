@@ -2,10 +2,13 @@ package com.kitbox.ui.panel;
 
 import com.kitbox.crypto.CryptoException;
 import com.kitbox.crypto.FileCryptoService;
+import com.kitbox.crypto.JasyptService;
 import com.kitbox.crypto.SymmetricService;
 import com.kitbox.crypto.model.ContentFormat;
 import com.kitbox.crypto.model.CryptoMode;
 import com.kitbox.crypto.model.DataEncoding;
+import com.kitbox.crypto.model.JasyptAlgorithm;
+import com.kitbox.crypto.model.JasyptIvGenerator;
 import com.kitbox.crypto.model.Padding;
 import com.kitbox.crypto.model.SymmetricAlgorithm;
 import com.kitbox.keystore.KeyEntryType;
@@ -17,6 +20,7 @@ import com.kitbox.ui.components.TextIOPane;
 import javax.swing.BorderFactory;
 import javax.swing.DefaultComboBoxModel;
 import javax.swing.JButton;
+import javax.swing.JCheckBox;
 import javax.swing.JComboBox;
 import javax.swing.JFileChooser;
 import javax.swing.JLabel;
@@ -43,6 +47,15 @@ public class SymmetricPanel extends JPanel {
             ContentFormat.TEXT, ContentFormat.HEX});
     private final TextIOPane io = new TextIOPane("明文 / 密文输入（文本按 UTF-8 处理）", "结果");
 
+    // ---------------- Jasypt 配置加解密 ----------------
+
+    private final JComboBox<JasyptAlgorithm> jasyptAlgoCombo = new JComboBox<>(JasyptAlgorithm.values());
+    private final JComboBox<JasyptIvGenerator> jasyptIvCombo = new JComboBox<>(JasyptIvGenerator.values());
+    private final JTextField jasyptIterationsField = new JTextField("1000", 6);
+    private final JCheckBox jasyptWrapBox = new JCheckBox("结果用 ENC() 包裹", true);
+    private final JTextField jasyptPwdField = new JTextField();
+    private final TextIOPane jasyptIo = new TextIOPane("明文 / 密文输入（密文可带 ENC() 包裹）", "结果");
+
     public SymmetricPanel() {
         setLayout(new BorderLayout());
         try {
@@ -53,6 +66,7 @@ public class SymmetricPanel extends JPanel {
         JTabbedPane tabs = new JTabbedPane();
         tabs.addTab("文本", buildTextTab());
         tabs.addTab("文件", buildFileTab());
+        tabs.addTab("Jasypt 配置", buildJasyptTab());
         add(tabs, BorderLayout.CENTER);
     }
 
@@ -138,6 +152,113 @@ public class SymmetricPanel extends JPanel {
 
     private String cipherEncoding(byte[] data) {
         return cipherEncoding().encode(data);
+    }
+
+    // ---------------- Jasypt ----------------
+
+    private JPanel buildJasyptTab() {
+        JPanel panel = new JPanel(new BorderLayout());
+
+        JPanel algoRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
+        algoRow.setBorder(BorderFactory.createEmptyBorder(3, 8, 3, 8));
+        algoRow.add(SwingUtils.groupLabel("算法"));
+        jasyptAlgoCombo.setPreferredSize(new java.awt.Dimension(250, jasyptAlgoCombo.getPreferredSize().height));
+        algoRow.add(jasyptAlgoCombo);
+        algoRow.add(new JLabel("迭代次数："));
+        algoRow.add(jasyptIterationsField);
+        algoRow.add(jasyptWrapBox);
+
+        JPanel pwdRow = new JPanel(new BorderLayout(6, 0));
+        pwdRow.setBorder(BorderFactory.createEmptyBorder(3, 8, 3, 8));
+        pwdRow.add(SwingUtils.groupLabel("口令"), BorderLayout.WEST);
+        pwdRow.add(jasyptPwdField, BorderLayout.CENTER);
+
+        // IV 生成器仅对旧算法（PBEWithMD5AndDES）有意义；AES_256 布局固定携带随机 IV
+        JPanel ivRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
+        ivRow.setBorder(BorderFactory.createEmptyBorder(3, 8, 3, 8));
+        ivRow.add(SwingUtils.groupLabel("IV 生成器"));
+        jasyptIvCombo.setPreferredSize(new java.awt.Dimension(250, jasyptIvCombo.getPreferredSize().height));
+        jasyptIvCombo.setToolTipText("仅旧算法生效：旧默认不生成独立 IV；RandomIvGenerator 为博客同款配置。"
+                + "解密时自动尝试新旧三种布局，无需手选");
+        ivRow.add(jasyptIvCombo);
+        jasyptAlgoCombo.addActionListener(e ->
+                jasyptIvCombo.setEnabled(jasyptAlgoCombo.getSelectedItem() == JasyptAlgorithm.MD5_DES));
+        jasyptIvCombo.setEnabled(jasyptAlgoCombo.getSelectedItem() == JasyptAlgorithm.MD5_DES);
+
+        JPanel rows = new JPanel(new java.awt.GridBagLayout());
+        java.awt.GridBagConstraints gc = new java.awt.GridBagConstraints();
+        gc.gridx = 0;
+        gc.weightx = 1;
+        gc.fill = java.awt.GridBagConstraints.HORIZONTAL;
+        gc.gridy = 0;
+        rows.add(algoRow, gc);
+        gc.gridy = 1;
+        rows.add(pwdRow, gc);
+        gc.gridy = 2;
+        rows.add(ivRow, gc);
+
+        JButton encrypt = new JButton("加密");
+        JButton decrypt = new JButton("解密");
+        JButton clear = new JButton("全部清空");
+        SwingUtils.stylePrimary(encrypt);
+        SwingUtils.styleSecondary(decrypt);
+        encrypt.addActionListener(e -> SwingUtils.runWithCatch(this, this::jasyptEncrypt));
+        decrypt.addActionListener(e -> SwingUtils.runWithCatch(this, this::jasyptDecrypt));
+        clear.addActionListener(e -> jasyptIo.clearAll());
+
+        JPanel north = new JPanel(new BorderLayout());
+        north.add(rows, BorderLayout.NORTH);
+        north.add(SwingUtils.actionBar(
+                new javax.swing.JComponent[]{encrypt, decrypt},
+                new javax.swing.JComponent[]{clear}), BorderLayout.SOUTH);
+        panel.add(north, BorderLayout.NORTH);
+        panel.add(jasyptIo, BorderLayout.CENTER);
+        return panel;
+    }
+
+    private void jasyptEncrypt() throws CryptoException {
+        String input = jasyptIo.getInput();
+        if (input.isEmpty()) {
+            throw new CryptoException("请输入明文");
+        }
+        JasyptAlgorithm algo = (JasyptAlgorithm) jasyptAlgoCombo.getSelectedItem();
+        JasyptIvGenerator iv = (JasyptIvGenerator) jasyptIvCombo.getSelectedItem();
+        String result = JasyptService.encrypt(input, jasyptPassword(), algo, iv,
+                jasyptIterations(), jasyptWrapBox.isSelected());
+        jasyptIo.setOutput(result);
+        if (algo == JasyptAlgorithm.MD5_DES && iv == JasyptIvGenerator.RANDOM) {
+            jasyptIo.note("加密成功（随机盐与 IV 已嵌入密文，解密端自动识别新旧布局）");
+        } else {
+            jasyptIo.note("加密成功（随机" + (algo.getIvLength() > 0 ? "盐与 IV" : "盐") + "已嵌入密文）");
+        }
+    }
+
+    private void jasyptDecrypt() throws CryptoException {
+        String input = jasyptIo.getInput();
+        if (input.isEmpty()) {
+            throw new CryptoException("请输入密文");
+        }
+        JasyptAlgorithm algo = (JasyptAlgorithm) jasyptAlgoCombo.getSelectedItem();
+        String result = JasyptService.decrypt(input, jasyptPassword(), algo, jasyptIterations());
+        jasyptIo.setOutput(result);
+        jasyptIo.note("解密成功");
+    }
+
+    private char[] jasyptPassword() throws CryptoException {
+        String text = jasyptPwdField.getText();
+        if (text.isEmpty()) {
+            throw new CryptoException("请输入口令（jasypt.encryptor.password）");
+        }
+        return text.toCharArray();
+    }
+
+    private int jasyptIterations() throws CryptoException {
+        String text = jasyptIterationsField.getText().trim();
+        try {
+            return Integer.parseInt(text);
+        } catch (NumberFormatException e) {
+            throw new CryptoException("迭代次数必须是数字（Jasypt 默认 1000）");
+        }
     }
 
     // ---------------- 文件 ----------------

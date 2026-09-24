@@ -14,12 +14,11 @@ import javax.swing.JScrollPane;
 import javax.swing.JSpinner;
 import javax.swing.JTabbedPane;
 import javax.swing.JTextArea;
-import javax.swing.JTextField;
 import javax.swing.SpinnerNumberModel;
 import java.awt.BorderLayout;
-import java.awt.FlowLayout;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
+import java.awt.FlowLayout;
 import java.awt.Image;
 import java.awt.Insets;
 import java.awt.datatransfer.DataFlavor;
@@ -40,8 +39,17 @@ public class QRPanel extends JPanel {
     private final JSpinner marginSpinner = new JSpinner(new SpinnerNumberModel(2, 0, 8, 1));
     private final JLabel previewLabel = new JLabel("生成后显示在这里", javax.swing.SwingConstants.CENTER);
     private final JTextArea decodeArea = new JTextArea(6, 30);
-    private final JTextField imageField = new JTextField(26);
     private final JLabel decodePreview = new JLabel(" ", javax.swing.SwingConstants.CENTER);
+
+    /** 识别页当前的图片来源：文件或剪贴板位图。 */
+    private File pendingFile;
+    private BufferedImage pendingImage;
+    /** 预览区当前展示的原图（供放大查看）。 */
+    private BufferedImage lastPreviewImage;
+    /** 识别页拖放区：任何来源（选择/拖入/粘贴）都登记到这里，提供移除按钮。 */
+    private com.kitbox.ui.components.DropZone decodeZone;
+    /** 放大查看窗口（复用，避免重复打开）。 */
+    private com.kitbox.ui.components.ImageZoomDialog zoomDialog;
 
     private BufferedImage currentImage;
 
@@ -144,7 +152,7 @@ public class QRPanel extends JPanel {
         }
         java.awt.Toolkit.getDefaultToolkit().getSystemClipboard()
                 .setContents(new ImageTransferable(currentImage), null);
-        SwingUtils.info(this, "图片已复制到剪贴板，可直接粘贴到聊天/文档");
+        SwingUtils.showToast(previewLabel, "图片已复制到剪贴板");
     }
 
     // ---------------- 识别 ----------------
@@ -152,16 +160,39 @@ public class QRPanel extends JPanel {
     private JPanel buildDecodeTab() {
         JPanel panel = new JPanel(new BorderLayout());
 
-        JButton browse = new JButton("浏览…");
-        browse.addActionListener(e -> SwingUtils.runWithCatch(this, this::chooseImage));
-        JPanel fileRow = new JPanel(new BorderLayout(4, 0));
-        fileRow.add(imageField, BorderLayout.CENTER);
-        fileRow.add(browse, BorderLayout.EAST);
+        // 拖放区：点击选择 / 拖入 / Ctrl+V 粘贴（位图优先）
+        com.kitbox.ui.components.DropZone zone = new com.kitbox.ui.components.DropZone("image-up");
+        decodeZone = zone;
+        zone.setPasteHandler(() -> SwingUtils.runWithCatch(this, this::pasteDecodeSource));
+        zone.setFileConsumer(file -> {
+            zone.setFileName(file.getName());
+            pendingFile = file;
+            pendingImage = null;
+            showPreviewQuietly(file);
+            SwingUtils.runWithCatch(this, () -> {
+                BufferedImage image = ImageIO.read(file);
+                if (image == null) {
+                    throw new IOException("无法读取图片：" + file.getName());
+                }
+                decodeFromImage(image);
+            });
+        });
+        zone.setClearHandler(() -> {
+            pendingFile = null;
+            pendingImage = null;
+            lastPreviewImage = null;
+            decodePreview.setIcon(null);
+            decodePreview.setText(" ");
+            decodeArea.setText("");
+        });
 
-        com.kitbox.ui.FormPanel form = new com.kitbox.ui.FormPanel();
-        form.addField("图片文件：", fileRow);
-        form.addHint("支持 PNG / JPG / BMP 等常见格式；截图后直接保存为图片文件即可。");
-        form.addGlue();
+        JPanel zoneRow = new JPanel(new GridBagLayout());
+        zoneRow.setBorder(javax.swing.BorderFactory.createEmptyBorder(4, 10, 0, 10));
+        GridBagConstraints zgc = new GridBagConstraints();
+        zgc.gridx = 0;
+        zgc.weightx = 1;
+        zgc.fill = GridBagConstraints.HORIZONTAL;
+        zoneRow.add(zone, zgc);
 
         JButton decode = new JButton("识别");
         SwingUtils.stylePrimary(decode);
@@ -171,60 +202,162 @@ public class QRPanel extends JPanel {
         decodeArea.setFont(SwingUtils.monoFont(decodeArea.getFont().getSize()));
         decodeArea.setLineWrap(true);
         JScrollPane decodeScroll = new JScrollPane(decodeArea);
-        decodeScroll.setBorder(SwingUtils.cardBorder("识别结果"));
-        JButton copy = new JButton("复制结果");
+        decodeScroll.setBorder(null);
+        // 只读文本区默认会吞掉 Ctrl+V，这里覆盖为整页粘贴逻辑
+        decodeArea.getInputMap(javax.swing.JComponent.WHEN_FOCUSED)
+                .put(javax.swing.KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_V,
+                        java.awt.event.InputEvent.CTRL_DOWN_MASK), "kitboxPasteSource");
+        decodeArea.getInputMap(javax.swing.JComponent.WHEN_FOCUSED)
+                .put(javax.swing.KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_V,
+                        java.awt.event.InputEvent.CTRL_MASK), "kitboxPasteSource");
+        decodeArea.getActionMap().put("kitboxPasteSource", new javax.swing.AbstractAction() {
+            @Override
+            public void actionPerformed(java.awt.event.ActionEvent e) {
+                SwingUtils.runWithCatch(QRPanel.this, QRPanel.this::pasteDecodeSource);
+            }
+        });
+        // 复制按钮放在结果卡标题行，紧挨内容
+        JButton copy = SwingUtils.iconButton("copy", "复制", "复制结果");
         copy.addActionListener(e -> {
             if (!decodeArea.getText().isEmpty()) {
                 SwingUtils.copyToClipboard(decodeArea.getText());
+                SwingUtils.showToast(copy, "已复制到剪贴板");
             }
         });
+        JPanel resultBar = new JPanel(new FlowLayout(FlowLayout.RIGHT, 2, 0));
+        resultBar.setOpaque(false);
+        resultBar.add(copy);
+        JPanel resultCaption = new JPanel(new BorderLayout());
+        resultCaption.setOpaque(false);
+        resultCaption.setBorder(javax.swing.BorderFactory.createEmptyBorder(2, 10, 0, 6));
+        resultCaption.add(SwingUtils.groupLabel("识别结果"), BorderLayout.WEST);
+        resultCaption.add(resultBar, BorderLayout.EAST);
+        JPanel resultCard = new JPanel(new BorderLayout());
+        resultCard.setBorder(SwingUtils.cardLineBorder());
+        resultCard.add(resultCaption, BorderLayout.NORTH);
+        resultCard.add(decodeScroll, BorderLayout.CENTER);
 
-        decodePreview.setPreferredSize(new java.awt.Dimension(200, 200));
-        decodePreview.setBorder(SwingUtils.cardBorder("图片预览"));
+        // 预览区：与结果卡同构（标题行 + 线框），点击可放大查看
+        decodePreview.setPreferredSize(new java.awt.Dimension(400, 460));
+        decodePreview.setCursor(java.awt.Cursor.getPredefinedCursor(java.awt.Cursor.HAND_CURSOR));
+        decodePreview.addMouseListener(new java.awt.event.MouseAdapter() {
+            @Override
+            public void mouseClicked(java.awt.event.MouseEvent e) {
+                if (lastPreviewImage == null) {
+                    return;
+                }
+                if (zoomDialog != null && zoomDialog.isShowing()) {
+                    zoomDialog.setImage(lastPreviewImage);
+                    zoomDialog.toFront();
+                } else {
+                    zoomDialog = new com.kitbox.ui.components.ImageZoomDialog(
+                            javax.swing.SwingUtilities.windowForComponent(QRPanel.this),
+                            "二维码图片", lastPreviewImage);
+                    zoomDialog.setVisible(true);
+                }
+            }
+        });
+        JPanel previewCaption = new JPanel(new BorderLayout());
+        previewCaption.setOpaque(false);
+        previewCaption.setBorder(javax.swing.BorderFactory.createEmptyBorder(2, 10, 0, 6));
+        previewCaption.add(SwingUtils.groupLabel("图片预览（点击放大）"), BorderLayout.WEST);
+        JPanel previewCard = new JPanel(new BorderLayout());
+        previewCard.setBorder(SwingUtils.cardLineBorder());
+        previewCard.add(previewCaption, BorderLayout.NORTH);
+        previewCard.add(decodePreview, BorderLayout.CENTER);
 
-        JPanel center = new JPanel(new BorderLayout());
-        center.add(decodeScroll, BorderLayout.CENTER);
-        center.add(decodePreview, BorderLayout.EAST);
+        JPanel center = new JPanel(new BorderLayout(6, 0));
+        center.setBorder(javax.swing.BorderFactory.createEmptyBorder(4, 10, 10, 10));
+        center.add(resultCard, BorderLayout.CENTER);
+        center.add(previewCard, BorderLayout.EAST);
 
         decode.addActionListener(e -> SwingUtils.runWithCatch(this, this::decodeImage));
 
-        panel.add(form, BorderLayout.NORTH);
+        panel.add(zoneRow, BorderLayout.NORTH);
         panel.add(center, BorderLayout.CENTER);
         panel.add(SwingUtils.actionBar(
                 new javax.swing.JComponent[]{decode},
-                new javax.swing.JComponent[]{copy}), BorderLayout.SOUTH);
+                new javax.swing.JComponent[0]), BorderLayout.SOUTH);
         return panel;
     }
 
-    private void chooseImage() {
-        JFileChooser chooser = new JFileChooser();
-        chooser.setDialogTitle("选择二维码图片");
-        if (chooser.showOpenDialog(this) == JFileChooser.APPROVE_OPTION) {
-            imageField.setText(chooser.getSelectedFile().getAbsolutePath());
-            decodePreview.setText(" ");
+    /** 选择/拖入后立即显示图片预览（不自动识别，不打扰）。 */
+    private void showPreviewQuietly(File file) {
+        try {
+            BufferedImage image = ImageIO.read(file);
+            if (image == null) {
+                decodePreview.setIcon(null);
+                decodePreview.setText("无法读取图片");
+                return;
+            }
+            setPreviewThumb(image);
+        } catch (Exception e) {
+            decodePreview.setIcon(null);
+            decodePreview.setText("无法读取图片");
         }
     }
 
-    private void decodeImage() throws Exception {
-        String path = imageField.getText().trim();
-        if (path.isEmpty()) {
-            throw new IllegalStateException("请选择图片文件");
+    /** Ctrl+V / 粘贴按钮：优先剪贴板图片（截图/网页图片），其次剪贴板文件或路径。 */
+    private void pasteDecodeSource() throws Exception {
+        java.awt.Image clipboard = SwingUtils.clipboardImage();
+        if (clipboard != null) {
+            pendingImage = SwingUtils.toBufferedImage(clipboard);
+            pendingFile = null;
+            if (decodeZone != null) {
+                decodeZone.setFileName("剪贴板图片");
+            }
+            decodeFromImage(pendingImage);
+            return;
         }
-        BufferedImage image = ImageIO.read(new File(path));
-        if (image == null) {
-            throw new IOException("无法读取图片：" + path);
+        String path = SwingUtils.clipboardFilePathOrText();
+        if (path == null || path.isEmpty()) {
+            throw new IllegalStateException("剪贴板中没有图片或文件");
         }
-        // 预览缩略图
-        Image thumb = image.getWidth() > 190 || image.getHeight() > 190
-                ? image.getScaledInstance(190, -1, Image.SCALE_SMOOTH) : image;
-        decodePreview.setIcon(new javax.swing.ImageIcon(thumb));
-        decodePreview.setText(" ");
+        File file = new File(SwingUtils.normalizeFilePath(path));
+        if (!file.isFile()) {
+            throw new IllegalStateException("文件不存在：" + file);
+        }
+        pendingFile = file;
+        pendingImage = null;
+        if (decodeZone != null) {
+            decodeZone.setFileName(file.getName());
+        }
+        showPreviewQuietly(file);
+        decodeImage();
+    }
 
+    private void decodeImage() throws Exception {
+        if (pendingImage != null) {
+            decodeFromImage(pendingImage);
+            return;
+        }
+        if (pendingFile == null) {
+            throw new IllegalStateException("请先选择图片：点击拖放区选择、拖入文件或 Ctrl+V 粘贴");
+        }
+        BufferedImage image = ImageIO.read(pendingFile);
+        if (image == null) {
+            throw new IOException("无法读取图片：" + pendingFile.getName());
+        }
+        decodeFromImage(image);
+    }
+
+    /** 设置预览缩略图（同时记录原图供放大查看）。 */
+    private void setPreviewThumb(BufferedImage image) {
+        lastPreviewImage = image;
+        decodePreview.setIcon(SwingUtils.scaledIcon(image, 370, 370));
+        decodePreview.setText(" ");
+    }
+
+    /** 显示预览缩略图并识别内容。 */
+    private String decodeFromImage(BufferedImage image) throws Exception {
+        setPreviewThumb(image);
         String content = QrCodeService.decode(image);
         decodeArea.setText(content);
         if (com.kitbox.AppContext.config.isAutoCopyResult()) {
             SwingUtils.copyToClipboard(content);
+            SwingUtils.showToast(decodeArea, "结果已自动复制");
         }
+        return content;
     }
 
     /** 图片剪贴板传输对象。 */
