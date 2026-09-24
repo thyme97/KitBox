@@ -1,4 +1,14 @@
-﻿param([string]$Key)
+﻿#requires -Version 5.1
+<#
+.SYNOPSIS
+  启动 KitBox 指定工具页并对该窗口截图（PrintWindow，无需置顶/前台）。
+.EXAMPLE
+  powershell -ExecutionPolicy Bypass -File packaging\shot.ps1 default   # 主页
+  powershell -ExecutionPolicy Bypass -File packaging\shot.ps1 darkdefault
+.NOTES
+  产物：packaging\shot-<Key>.png，尺寸即应用窗口大小。
+#>
+param([string]$Key)
 $ErrorActionPreference = "Stop"
 $root = (Split-Path -Parent $PSScriptRoot)
 $map = @{
@@ -41,11 +51,19 @@ Add-Type @"
 using System;
 using System.Runtime.InteropServices;
 public class Win32Shot {
-    [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr hWnd);
+    [StructLayout(LayoutKind.Sequential)]
+    public struct RECT { public int Left, Top, Right, Bottom; }
+    [DllImport("user32.dll")] public static extern bool SetProcessDPIAware();
     [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
-    [DllImport("user32.dll")] public static extern bool SetWindowPos(IntPtr hWnd, IntPtr after, int x, int y, int cx, int cy, uint flags);
+    [DllImport("user32.dll")] public static extern bool IsIconic(IntPtr hWnd);
+    [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr hWnd, out RECT rect);
+    [DllImport("user32.dll")] public static extern bool PrintWindow(IntPtr hWnd, IntPtr hdc, uint flags);
+    [DllImport("dwmapi.dll")] public static extern int DwmGetWindowAttribute(IntPtr hwnd, uint attr, out RECT rect, uint size);
 }
 "@
+
+# DPI 感知：保证多缩放环境下 GetWindowRect 拿到物理像素
+[Win32Shot]::SetProcessDPIAware() | Out-Null
 
 $proc = Start-Process -FilePath $java -ArgumentList $jarArgs -PassThru -WorkingDirectory $root
 # 轮询等待主窗口就绪（最长 30 秒）：机器负载高时 JVM 启动可能远超固定等待
@@ -59,22 +77,38 @@ for ($i = 0; $i -lt 60; $i++) {
         break
     }
 }
-if ($h -ne [IntPtr]::Zero) {
-    [Win32Shot]::ShowWindow($h, 9) | Out-Null
-    [Win32Shot]::SetForegroundWindow($h) | Out-Null
-    # HWND_TOPMOST，避免窗口被前台应用遮挡
-    [Win32Shot]::SetWindowPos($h, [IntPtr](-1), 0, 0, 0, 0, 0x0003) | Out-Null
+if ($h -eq [IntPtr]::Zero) {
+    throw "未找到 KitBox 主窗口（进程可能启动失败或已退出）"
+}
+
+# 最小化时恢复显示（不抢前台焦点），再等渲染稳定
+if ([Win32Shot]::IsIconic($h)) {
+    [Win32Shot]::ShowWindow($h, 4) | Out-Null   # SW_SHOWNOACTIVATE
+    Start-Sleep -Milliseconds 800
 }
 Start-Sleep -Milliseconds 1200
 
-Add-Type -AssemblyName System.Windows.Forms
+# 窗口尺寸：优先 DWM 扩展框架边界（剔除 Win10/11 不可见的缩放边），失败退回 GetWindowRect
+$rect = New-Object Win32Shot+RECT
+if ([Win32Shot]::DwmGetWindowAttribute($h, 9, [ref]$rect, 16) -ne 0) {
+    [Win32Shot]::GetWindowRect($h, [ref]$rect) | Out-Null
+}
+$width = $rect.Right - $rect.Left
+$height = $rect.Bottom - $rect.Top
+if ($width -le 0 -or $height -le 0) {
+    throw "窗口尺寸异常（${width}x${height}）"
+}
+
 Add-Type -AssemblyName System.Drawing
-$b = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds
-$bmp = New-Object System.Drawing.Bitmap $b.Width, $b.Height
+$bmp = New-Object System.Drawing.Bitmap $width, $height
 $g = [System.Drawing.Graphics]::FromImage($bmp)
-$g.CopyFromScreen(0, 0, 0, 0, $bmp.Size)
-$bmp.Save((Join-Path $root ("packaging\shot-" + $Key + ".png")), [System.Drawing.Imaging.ImageFormat]::Png)
+$hdc = $g.GetHdc()
+# PW_RENDERFULLCONTENT(2)：窗口被遮挡或不在前台也能截到完整内容
+[Win32Shot]::PrintWindow($h, $hdc, 2) | Out-Null
+$g.ReleaseHdc($hdc)
 $g.Dispose()
+$bmp.Save((Join-Path $root ("packaging\shot-" + $Key + ".png")), [System.Drawing.Imaging.ImageFormat]::Png)
 $bmp.Dispose()
-Stop-Process -Id $proc.Id -Force
-Write-Output ("saved shot-" + $Key + ".png")
+
+Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
+Write-Output ("saved shot-" + $Key + ".png (窗口 ${width}x${height})")
